@@ -78,7 +78,7 @@ npm run test:watch
 - Phase 1 keeps the app static and framework-free, but now includes MapLibre for real map rendering.
 - Core behavior lives in `src/rentaldash.js` so it can be tested without a browser.
 - MapLibre is loaded from `node_modules` by the static server instead of through a bundler.
-- MapTiler or another tile provider should be configured by pasting a style URL in the Map Provider panel; the checked-in default is MapLibre's demo style for development only.
+- MapTiler or another tile provider should be configured by pasting a style URL in the Map Provider panel; the checked-in default is an OpenStreetMap raster style for development only.
 - Documentation must be updated with implementation changes.
 - Third-party listing access must be handled through compliant APIs, feeds, or approved source adapters in later phases.
 - Facebook Marketplace import is manual-first because automatic extraction may be unreliable or disallowed.

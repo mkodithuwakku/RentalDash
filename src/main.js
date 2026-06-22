@@ -21,6 +21,7 @@ import {
   updateImportedListing
 } from "./rentaldash.js";
 import {
+  flyMapTo,
   getMapStyleUrl,
   initMapLibreMap,
   setMapStyleUrl,
@@ -177,10 +178,10 @@ function renderMapProviderControls() {
         Style URL
         <input name="styleUrl" type="url" value="${escapeAttribute(getMapStyleUrl())}" placeholder="https://api.maptiler.com/maps/streets/style.json?key=..." />
       </label>
-      <p>MapLibre renders this style. Use a MapTiler style URL for production tiles.</p>
+      <p>Blank uses OSM tiles for local development. Use a MapTiler style URL for production tiles.</p>
       <div class="button-row">
         <button type="submit">Apply map style</button>
-        <button type="button" class="secondary" data-action="reset-map-style">Use demo</button>
+        <button type="button" class="secondary" data-action="reset-map-style">Use OSM dev map</button>
       </div>
     </form>
   `;
@@ -214,7 +215,7 @@ function renderDashboard({ filtered, visible, selectedListing, favouriteIds }) {
         <div class="map-toolbar">
           <div>
             <strong>${visible.length} visible listings</strong>
-            <span>MapLibre · Zoom ${Number(state.map.zoom).toFixed(1)}</span>
+            <span data-map-zoom-label>MapLibre · Zoom ${Number(state.map.zoom).toFixed(1)}</span>
           </div>
           <div class="map-controls">
             <button data-map="west" title="Pan west">←</button>
@@ -231,7 +232,7 @@ function renderDashboard({ filtered, visible, selectedListing, favouriteIds }) {
             <div class="map-grid"></div>
             ${visible.map((listing) => renderMarker(listing, favouriteIds)).join("")}
             <div class="map-fallback-message">
-              Real map tiles load when the configured style URL is available.
+              Fallback map shown while real map tiles load.
             </div>
           </div>
         </div>
@@ -636,13 +637,13 @@ function bindEvents() {
     .querySelector("[data-action='reset-map-style']")
     ?.addEventListener("click", () => {
       setMapStyleUrl("");
-      update({ ...state, notice: { type: "success", message: "Map style reset to the demo tiles." } });
+      update({ ...state, notice: { type: "success", message: "Map style reset to the OSM development basemap." } });
     });
   document.querySelectorAll("[data-select]").forEach((button) => {
     button.addEventListener("click", () => selectListing(button.dataset.select));
   });
   document.querySelectorAll("[data-map]").forEach((button) => {
-    button.addEventListener("click", () => update({ ...state, map: nextMapState(button.dataset.map) }));
+    button.addEventListener("click", () => handleMapControl(button.dataset.map));
   });
   document.querySelectorAll("[data-remove-location]").forEach((button) => {
     button.addEventListener("click", () => update(removeFrequentLocation(state, button.dataset.removeLocation)));
@@ -656,20 +657,23 @@ function initDashboardMap({ filtered, visible, favouriteIds }) {
 
   initMapLibreMap({
     container,
-    listings: visible,
+    listings: filtered,
     favouriteIds,
     selectedListingId: state.selectedListingId,
     mapState: state.map,
     onSelect: selectListing,
-    onViewportChange: (mapState) =>
-      update({
+    onViewportChange: (mapState) => {
+      state = {
         ...state,
         map: mapState,
         selectedListingId:
           getVisibleListings(filtered, mapState).some((listing) => listing.id === state.selectedListingId)
             ? state.selectedListingId
             : null
-      })
+      };
+      saveState();
+      updateMapToolbar(mapState);
+    }
   });
 }
 
@@ -721,6 +725,23 @@ function handleMapProvider(event) {
   const form = new FormData(event.currentTarget);
   setMapStyleUrl(form.get("styleUrl"));
   update({ ...state, notice: { type: "success", message: "Map style saved." } });
+}
+
+function handleMapControl(intent) {
+  const nextMap = nextMapState(intent);
+  state = { ...state, map: nextMap };
+  saveState();
+  updateMapToolbar(nextMap);
+  if (!flyMapTo(nextMap)) {
+    update(state);
+  }
+}
+
+function updateMapToolbar(mapState) {
+  const label = document.querySelector("[data-map-zoom-label]");
+  if (label) {
+    label.textContent = `MapLibre · Zoom ${Number(mapState.zoom).toFixed(1)}`;
+  }
 }
 
 function handleFacebookImport(event) {

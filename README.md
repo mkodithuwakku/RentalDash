@@ -22,7 +22,7 @@ Then open:
 http://localhost:4173
 ```
 
-The app uses browser `localStorage`, seeded listings, MapLibre GL JS, and a small Node static server. The map defaults to MapLibre demo tiles for development; paste a MapTiler style URL in the Map Provider panel for production-style tiles.
+The app uses browser `localStorage`, seeded listings, MapLibre GL JS, and a small Node static server. The map defaults to OpenStreetMap raster tiles for local development; paste a MapTiler-compatible style URL in the Map Provider panel for production-style tiles.
 
 ## Test
 

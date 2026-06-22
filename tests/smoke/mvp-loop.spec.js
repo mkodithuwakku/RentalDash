@@ -7,12 +7,18 @@ test("user can complete the MVP rental shortlist loop", async ({ page }) => {
   await expect(page.getByText("4 visible listings")).toBeVisible();
   await expect(page.getByLabel("Style URL")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.maplibregl?.Map))).toBe(true);
+  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector(".maplibre-ready")))).toBe(true);
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await page.locator(".maplibregl-ctrl-zoom-in").click();
+  await page.getByRole("button", { name: "+" }).first().click();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 
   await page.getByLabel("Email").fill("smoke@example.com");
   await page.getByLabel("Name").fill("Smoke Tester");
   await page.getByRole("button", { name: "Register" }).click();
 
   await expect(page.getByText("smoke@example.com")).toBeVisible();
+  await page.getByLabel("Select Bright Beltline One Bedroom").click();
   await page.getByRole("button", { name: "Save" }).first().click();
 
   await page.getByRole("button", { name: "Favourites" }).click();

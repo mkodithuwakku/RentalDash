@@ -1,5 +1,22 @@
-const defaultStyleUrl = "https://demotiles.maplibre.org/globe.json";
 const styleStorageKey = "rentaldash.mapStyleUrl";
+const defaultRasterStyle = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "&copy; OpenStreetMap contributors"
+    }
+  },
+  layers: [
+    {
+      id: "osm-raster",
+      type: "raster",
+      source: "osm"
+    }
+  ]
+};
 
 let activeMap = null;
 let activeMarkers = [];
@@ -7,11 +24,12 @@ let activeContainer = null;
 let suppressViewportEvent = false;
 
 export function getMapStyleUrl() {
-  return (
-    window.RENTALDASH_MAP_STYLE_URL ||
-    localStorage.getItem(styleStorageKey) ||
-    defaultStyleUrl
-  );
+  const configuredStyleUrl = window.RENTALDASH_MAP_STYLE_URL || localStorage.getItem(styleStorageKey) || "";
+  if (configuredStyleUrl.includes("demotiles.maplibre.org/globe.json")) {
+    localStorage.removeItem(styleStorageKey);
+    return "";
+  }
+  return configuredStyleUrl;
 }
 
 export function setMapStyleUrl(styleUrl) {
@@ -60,7 +78,7 @@ export function initMapLibreMap({
   try {
     activeMap = new maplibregl.Map({
       container: mapTarget,
-      style: getMapStyleUrl(),
+      style: getMapStyleUrl() || defaultRasterStyle,
       center: [mapState.centerLng, mapState.centerLat],
       zoom: Number(mapState.zoom),
       attributionControl: true,
@@ -74,10 +92,13 @@ export function initMapLibreMap({
 
   activeMap.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "top-right");
 
-  activeMap.once("load", () => {
+  const markReady = () => {
     container.classList.add("maplibre-ready");
     syncMarkers({ listings, favouriteIds, selectedListingId, onSelect });
-  });
+  };
+
+  activeMap.once("styledata", markReady);
+  activeMap.once("load", markReady);
 
   activeMap.once("error", () => {
     container.classList.add("maplibre-unavailable");
@@ -97,7 +118,7 @@ export function initMapLibreMap({
 }
 
 export function flyMapTo(mapState) {
-  if (!activeMap) return;
+  if (!activeMap) return false;
   suppressViewportEvent = true;
   activeMap.jumpTo({
     center: [mapState.centerLng, mapState.centerLat],
@@ -106,6 +127,7 @@ export function flyMapTo(mapState) {
   window.setTimeout(() => {
     suppressViewportEvent = false;
   }, 0);
+  return true;
 }
 
 function syncMarkers({ listings, favouriteIds, selectedListingId, onSelect }) {

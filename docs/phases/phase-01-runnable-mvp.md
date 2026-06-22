@@ -38,7 +38,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 
 - No real authentication security.
 - No backend database.
-- The default development style uses MapLibre demo tiles; production tiles require a MapTiler or compatible style URL.
+- The default development style uses OpenStreetMap raster tiles; production tiles require a MapTiler or compatible style URL.
 - No geocoding yet.
 - No real routing provider.
 - No direct Rentals.ca or REW integration yet.
