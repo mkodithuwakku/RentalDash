@@ -5,6 +5,8 @@ test("user can complete the MVP rental shortlist loop", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "RentalDash" })).toBeVisible();
   await expect(page.getByText("4 visible listings")).toBeVisible();
+  await expect(page.getByLabel("Style URL")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(window.maplibregl?.Map))).toBe(true);
 
   await page.getByLabel("Email").fill("smoke@example.com");
   await page.getByLabel("Name").fill("Smoke Tester");

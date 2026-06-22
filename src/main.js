@@ -20,6 +20,12 @@ import {
   updateFavouriteNote,
   updateImportedListing
 } from "./rentaldash.js";
+import {
+  getMapStyleUrl,
+  initMapLibreMap,
+  setMapStyleUrl,
+  teardownMapLibreMap
+} from "./maplibre-map.js";
 
 const storageKey = "rentaldash.state.v1";
 const app = document.querySelector("#app");
@@ -56,6 +62,7 @@ function action(callback, successMessage) {
 }
 
 function render() {
+  teardownMapLibreMap();
   const user = getCurrentUser(state);
   const allListings = getUserListings(state);
   const favouriteIds = getFavouriteIds(state);
@@ -83,6 +90,7 @@ function render() {
           ${navButton("import", "Import")}
         </nav>
         ${renderFilters()}
+        ${renderMapProviderControls()}
       </aside>
       <section class="workspace">
         ${state.notice ? renderNotice(state.notice) : ""}
@@ -92,6 +100,7 @@ function render() {
   `;
 
   bindEvents();
+  initDashboardMap({ filtered, visible, favouriteIds });
 }
 
 function navButton(view, label) {
@@ -160,6 +169,23 @@ function renderFilters() {
   `;
 }
 
+function renderMapProviderControls() {
+  return `
+    <form class="map-provider" data-form="map-provider">
+      <h2>Map Provider</h2>
+      <label>
+        Style URL
+        <input name="styleUrl" type="url" value="${escapeAttribute(getMapStyleUrl())}" placeholder="https://api.maptiler.com/maps/streets/style.json?key=..." />
+      </label>
+      <p>MapLibre renders this style. Use a MapTiler style URL for production tiles.</p>
+      <div class="button-row">
+        <button type="submit">Apply map style</button>
+        <button type="button" class="secondary" data-action="reset-map-style">Use demo</button>
+      </div>
+    </form>
+  `;
+}
+
 function option(value, label, selected) {
   return `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`;
 }
@@ -188,7 +214,7 @@ function renderDashboard({ filtered, visible, selectedListing, favouriteIds }) {
         <div class="map-toolbar">
           <div>
             <strong>${visible.length} visible listings</strong>
-            <span>Zoom ${state.map.zoom}</span>
+            <span>MapLibre · Zoom ${Number(state.map.zoom).toFixed(1)}</span>
           </div>
           <div class="map-controls">
             <button data-map="west" title="Pan west">←</button>
@@ -200,8 +226,14 @@ function renderDashboard({ filtered, visible, selectedListing, favouriteIds }) {
           </div>
         </div>
         <div class="map-canvas" role="application" aria-label="Interactive rental map">
-          <div class="map-grid"></div>
-          ${visible.map((listing) => renderMarker(listing, favouriteIds)).join("")}
+          <div class="real-map" data-maplibre-container></div>
+          <div class="map-fallback-layer" aria-label="Fallback rental map">
+            <div class="map-grid"></div>
+            ${visible.map((listing) => renderMarker(listing, favouriteIds)).join("")}
+            <div class="map-fallback-message">
+              Real map tiles load when the configured style URL is available.
+            </div>
+          </div>
         </div>
       </section>
       <aside class="detail-panel ${state.mobilePanel === "map" ? "mobile-hidden" : ""}">
@@ -583,6 +615,7 @@ function bindEvents() {
   document.querySelector("[data-action='logout']")?.addEventListener("click", () => update(logoutUser(state)));
   document.querySelector("[data-form='auth']")?.addEventListener("submit", handleAuth);
   document.querySelector("[data-form='filters']")?.addEventListener("input", handleFilters);
+  document.querySelector("[data-form='map-provider']")?.addEventListener("submit", handleMapProvider);
   document.querySelector("[data-form='compare-sort']")?.addEventListener("input", handleCompareSort);
   document.querySelector("[data-form='facebook']")?.addEventListener("submit", handleFacebookImport);
   document.querySelector("[data-form='edit-import']")?.addEventListener("submit", handleImportedEdit);
@@ -599,24 +632,56 @@ function bindEvents() {
   document.querySelectorAll("[data-mobile-panel]").forEach((button) => {
     button.addEventListener("click", () => update({ ...state, mobilePanel: button.dataset.mobilePanel }));
   });
-  document.querySelectorAll("[data-select]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const listing = getUserListings(state).find((item) => item.id === button.dataset.select);
-      update({
-        ...state,
-        view: "dashboard",
-        selectedListingId: button.dataset.select,
-        editingListingId: null,
-        mobilePanel: "details",
-        map: listing ? { ...state.map, centerLat: listing.lat, centerLng: listing.lng } : state.map
-      });
+  document
+    .querySelector("[data-action='reset-map-style']")
+    ?.addEventListener("click", () => {
+      setMapStyleUrl("");
+      update({ ...state, notice: { type: "success", message: "Map style reset to the demo tiles." } });
     });
+  document.querySelectorAll("[data-select]").forEach((button) => {
+    button.addEventListener("click", () => selectListing(button.dataset.select));
   });
   document.querySelectorAll("[data-map]").forEach((button) => {
     button.addEventListener("click", () => update({ ...state, map: nextMapState(button.dataset.map) }));
   });
   document.querySelectorAll("[data-remove-location]").forEach((button) => {
     button.addEventListener("click", () => update(removeFrequentLocation(state, button.dataset.removeLocation)));
+  });
+}
+
+function initDashboardMap({ filtered, visible, favouriteIds }) {
+  if (state.view !== "dashboard") return;
+  const container = document.querySelector(".map-canvas");
+  if (!container || container.closest(".map-panel")?.classList.contains("mobile-hidden")) return;
+
+  initMapLibreMap({
+    container,
+    listings: visible,
+    favouriteIds,
+    selectedListingId: state.selectedListingId,
+    mapState: state.map,
+    onSelect: selectListing,
+    onViewportChange: (mapState) =>
+      update({
+        ...state,
+        map: mapState,
+        selectedListingId:
+          getVisibleListings(filtered, mapState).some((listing) => listing.id === state.selectedListingId)
+            ? state.selectedListingId
+            : null
+      })
+  });
+}
+
+function selectListing(listingId) {
+  const listing = getUserListings(state).find((item) => item.id === listingId);
+  update({
+    ...state,
+    view: "dashboard",
+    selectedListingId: listingId,
+    editingListingId: null,
+    mobilePanel: "details",
+    map: listing ? { ...state.map, centerLat: listing.lat, centerLng: listing.lng } : state.map
   });
 }
 
@@ -649,6 +714,13 @@ function handleFilters(event) {
 function handleCompareSort(event) {
   const form = new FormData(event.currentTarget);
   update({ ...state, compareSort: form.get("compareSort") });
+}
+
+function handleMapProvider(event) {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  setMapStyleUrl(form.get("styleUrl"));
+  update({ ...state, notice: { type: "success", message: "Map style saved." } });
 }
 
 function handleFacebookImport(event) {
