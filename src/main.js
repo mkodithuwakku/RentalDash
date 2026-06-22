@@ -24,6 +24,7 @@ import {
 import {
   fitMapToBounds,
   flyMapTo,
+  getMaxMapZoom,
   getMapStyleUrl,
   initMapLibreMap,
   setMapStyleUrl,
@@ -681,7 +682,7 @@ function initDashboardMap({ filtered, visible, favouriteIds }) {
             : null
       };
       saveState();
-      updateMapToolbar(mapState);
+      updateMapStats(mapState);
     }
   });
 }
@@ -917,7 +918,7 @@ function nextMapState(intent) {
   if (intent === "south") next.centerLat -= step;
   if (intent === "east") next.centerLng += step;
   if (intent === "west") next.centerLng -= step;
-  if (intent === "zoomIn") next.zoom = Math.min(10, next.zoom + 1);
+  if (intent === "zoomIn") next.zoom = Math.min(getMaxMapZoom(), next.zoom + 1);
   if (intent === "zoomOut") next.zoom = Math.max(2, next.zoom - 1);
   return next;
 }

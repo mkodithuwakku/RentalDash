@@ -1,4 +1,5 @@
 const styleStorageKey = "rentaldash.mapStyleUrl";
+const maxMapZoom = 18;
 const defaultRasterStyle = {
   version: 8,
   sources: {
@@ -6,6 +7,7 @@ const defaultRasterStyle = {
       type: "raster",
       tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
       tileSize: 256,
+      maxzoom: 19,
       attribution: "&copy; OpenStreetMap contributors"
     }
   },
@@ -22,6 +24,7 @@ let activeMap = null;
 let activeMarkers = [];
 let activeContainer = null;
 let suppressViewportEvent = false;
+let mapErrorCount = 0;
 
 export function getMapStyleUrl() {
   const configuredStyleUrl = window.RENTALDASH_MAP_STYLE_URL || localStorage.getItem(styleStorageKey) || "";
@@ -46,6 +49,7 @@ export function teardownMapLibreMap() {
   activeMarkers = [];
   activeContainer?.classList.remove("maplibre-ready", "maplibre-unavailable");
   activeContainer = null;
+  mapErrorCount = 0;
 
   if (activeMap) {
     activeMap.remove();
@@ -80,7 +84,8 @@ export function initMapLibreMap({
       container: mapTarget,
       style: getMapStyleUrl() || defaultRasterStyle,
       center: [mapState.centerLng, mapState.centerLat],
-      zoom: Number(mapState.zoom),
+      zoom: clampZoom(mapState.zoom),
+      maxZoom: maxMapZoom,
       attributionControl: true,
       cooperativeGestures: true
     });
@@ -94,15 +99,15 @@ export function initMapLibreMap({
 
   const markReady = () => {
     container.classList.add("maplibre-ready");
+    container.classList.remove("maplibre-unavailable");
     syncMarkers({ listings, favouriteIds, selectedListingId, onSelect });
   };
 
   activeMap.once("styledata", markReady);
   activeMap.once("load", markReady);
 
-  activeMap.once("error", () => {
-    container.classList.add("maplibre-unavailable");
-  });
+  activeMap.on("error", () => markMapUnavailable(container));
+  activeMap.on("webglcontextlost", () => markMapUnavailable(container));
 
   activeMap.on("moveend", () => {
     if (suppressViewportEvent) return;
@@ -110,7 +115,7 @@ export function initMapLibreMap({
     onViewportChange({
       centerLat: Number(center.lat.toFixed(4)),
       centerLng: Number(center.lng.toFixed(4)),
-      zoom: Number(activeMap.getZoom().toFixed(2))
+      zoom: Number(Math.min(activeMap.getZoom(), maxMapZoom).toFixed(2))
     });
   });
 
@@ -122,7 +127,7 @@ export function flyMapTo(mapState) {
   suppressViewportEvent = true;
   activeMap.jumpTo({
     center: [mapState.centerLng, mapState.centerLat],
-    zoom: Number(mapState.zoom)
+    zoom: clampZoom(mapState.zoom)
   });
   window.setTimeout(() => {
     suppressViewportEvent = false;
@@ -155,6 +160,10 @@ export function fitMapToBounds(bounds) {
   };
 }
 
+export function getMaxMapZoom() {
+  return maxMapZoom;
+}
+
 function syncMarkers({ listings, favouriteIds, selectedListingId, onSelect }) {
   if (!activeMap || !window.maplibregl) return;
 
@@ -177,4 +186,15 @@ function syncMarkers({ listings, favouriteIds, selectedListingId, onSelect }) {
       .setLngLat([listing.lng, listing.lat])
       .addTo(activeMap);
   });
+}
+
+function markMapUnavailable(container) {
+  mapErrorCount += 1;
+  if (mapErrorCount >= 3) {
+    container.classList.add("maplibre-unavailable");
+  }
+}
+
+function clampZoom(zoom) {
+  return Math.min(maxMapZoom, Math.max(2, Number(zoom) || 4));
 }

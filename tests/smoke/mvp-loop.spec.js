@@ -27,6 +27,19 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
   await page.locator(".maplibregl-ctrl-zoom-in").click();
   await page.getByRole("button", { name: "+" }).first().click();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  for (let index = 0; index < 20; index += 1) {
+    await page.getByRole("button", { name: "+" }).first().click();
+  }
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).map.zoom))
+    .toBeLessThanOrEqual(18);
+  await page.locator(".map-canvas").evaluate((node) => {
+    node.classList.add("maplibre-ready", "maplibre-unavailable");
+  });
+  await expect(page.locator(".map-fallback-layer")).toBeVisible();
+  await page.locator(".map-canvas").evaluate((node) => {
+    node.classList.remove("maplibre-unavailable");
+  });
   await page.getByLabel("Search map location").fill("Beltline Calgary");
   await page.getByRole("button", { name: "Search" }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).map.searchQuery)).toBe("Beltline Calgary");

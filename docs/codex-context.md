@@ -61,6 +61,7 @@ npm run test:watch
 - Seed listings represent Rentals.ca and REW-style sources.
 - The map uses MapLibre GL JS when the configured style URL loads, with the previous CSS map retained as a fallback.
 - Users can pan and zoom the map through MapLibre controls or fallback controls.
+- MapLibre zoom is capped to the OSM tile range, and repeated map errors or WebGL context loss reveal the fallback map instead of leaving a grey canvas.
 - On first dashboard load, the app requests browser geolocation and fits the map to a 100 square km area around the user when permission is granted.
 - The map toolbar includes place search backed by Nominatim for local development.
 - Listings are filtered by viewport, max price, bedrooms, source, and favourite status.

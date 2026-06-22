@@ -38,7 +38,7 @@ The test suite covers:
 - Frequent locations.
 - Commute estimate generation.
 - Comparison row construction, sorting, and highlights.
-- Browser-level MVP flow across MapLibre bootstrapping, browser geolocation, map search, register, favourite, import, edit, notes, locations, and compare.
+- Browser-level MVP flow across MapLibre bootstrapping, zoom stability, fallback visibility, browser geolocation, map search, register, favourite, import, edit, notes, locations, and compare.
 
 ## Testing Rules for Future Work
 

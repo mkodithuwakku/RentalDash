@@ -31,6 +31,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 
 - App state is stored in `localStorage` under `rentaldash.state.v1`.
 - MapLibre GL JS renders real map tiles when the configured style URL is reachable; the fallback map uses latitude and longitude math to position price pins.
+- MapLibre is capped to zoom 18 for the development OSM basemap and switches to fallback UI after repeated map errors or WebGL context loss.
 - The Map Provider panel stores an optional MapTiler or compatible style URL in `localStorage` under `rentaldash.mapStyleUrl`.
 - Browser geolocation fits the dashboard to a 100 square km area around the user when permission is granted.
 - Map search calls Nominatim and fits MapLibre to the returned result bounds.

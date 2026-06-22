@@ -309,6 +309,15 @@ label {
   display: none;
 }
 
+.maplibre-unavailable .real-map {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.maplibre-unavailable .map-fallback-layer {
+  display: block;
+}
+
 .map-fallback-message {
   position: absolute;
   left: 16px;
