@@ -183,10 +183,36 @@ label {
   min-width: 0;
 }
 
+.notice {
+  margin: 16px 18px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  background: white;
+}
+
+.notice.error {
+  border-color: rgba(209, 86, 63, 0.4);
+  background: #fff5f2;
+}
+
+.notice.success {
+  border-color: rgba(18, 97, 73, 0.32);
+  background: #eff8f3;
+}
+
 .map-layout {
   display: grid;
   grid-template-columns: minmax(420px, 1fr) 420px;
   height: 100vh;
+}
+
+.mobile-view-toggle {
+  display: none;
 }
 
 .map-panel {
@@ -296,6 +322,12 @@ label {
   align-items: start;
 }
 
+.listing-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .source {
   color: var(--accent-3);
   font-weight: 900;
@@ -355,6 +387,16 @@ label {
   padding: 10px 0;
 }
 
+.note-form {
+  display: grid;
+  gap: 10px;
+}
+
+.note-preview {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+
 .page-panel {
   padding: 28px;
   display: grid;
@@ -400,6 +442,12 @@ label {
   max-width: 860px;
 }
 
+.compare-controls {
+  max-width: 420px;
+  display: grid;
+  gap: 8px;
+}
+
 .compare-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
@@ -425,6 +473,17 @@ th {
   background: #eef4f0;
   color: var(--muted);
   font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.table-highlight {
+  background: var(--soft);
+  font-weight: 900;
+}
+
+.table-highlight span {
+  color: var(--accent);
+  font-size: 0.78rem;
   text-transform: uppercase;
 }
 
@@ -477,9 +536,47 @@ th {
   }
 }
 
+@media (max-width: 720px) {
+  .notice,
+  .mobile-view-toggle {
+    margin: 12px 16px 0;
+  }
+
+  .notice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mobile-view-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .mobile-view-toggle button {
+    background: white;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+
+  .mobile-view-toggle button.active {
+    background: var(--ink);
+    color: white;
+  }
+
+  .mobile-hidden {
+    display: none;
+  }
+
+  .map-canvas {
+    min-height: 58vh;
+  }
+}
+
 @media (max-width: 620px) {
   .map-toolbar,
   .listing-heading,
+  .listing-actions,
   .commute-row,
   .location-card {
     align-items: stretch;

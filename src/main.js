@@ -6,6 +6,7 @@ import {
   filterListings,
   getCurrentUser,
   getFavouriteIds,
+  getFavouriteNotes,
   getUserListings,
   getVisibleListings,
   importFacebookListing,
@@ -14,7 +15,10 @@ import {
   markerPosition,
   registerUser,
   removeFrequentLocation,
-  toggleFavourite
+  sortComparisonRows,
+  toggleFavourite,
+  updateFavouriteNote,
+  updateImportedListing
 } from "./rentaldash.js";
 
 const storageKey = "rentaldash.state.v1";
@@ -35,16 +39,19 @@ function saveState() {
 }
 
 function update(nextState) {
-  state = nextState;
+  state = { ...nextState, notice: nextState.notice ?? null };
   saveState();
   render();
 }
 
-function action(callback) {
+function action(callback, successMessage) {
   try {
     callback();
+    if (successMessage) {
+      update({ ...state, notice: { type: "success", message: successMessage } });
+    }
   } catch (error) {
-    renderToast(error.message);
+    update({ ...state, notice: { type: "error", message: error.message } });
   }
 }
 
@@ -78,6 +85,7 @@ function render() {
         ${renderFilters()}
       </aside>
       <section class="workspace">
+        ${state.notice ? renderNotice(state.notice) : ""}
         ${renderView({ user, allListings, filtered, visible, selectedListing, favouriteIds })}
       </section>
     </section>
@@ -160,14 +168,23 @@ function renderView(context) {
   if (state.view === "compare") return renderCompare(context);
   if (state.view === "locations") return renderLocations(context);
   if (state.view === "import") return renderImport(context.user);
+  if (state.view === "edit-import") return renderEditImport(context);
   if (state.view === "favourites") return renderFavourites(context);
   return renderDashboard(context);
 }
 
-function renderDashboard({ visible, selectedListing, favouriteIds }) {
+function renderDashboard({ filtered, visible, selectedListing, favouriteIds }) {
+  const emptyBody =
+    filtered.length === 0
+      ? "No listings match the current filters."
+      : "Adjust filters or move the map.";
   return `
     <div class="map-layout">
-      <section class="map-panel">
+      <div class="mobile-view-toggle" aria-label="Mobile dashboard view">
+        <button class="${state.mobilePanel === "map" ? "active" : ""}" data-mobile-panel="map">Map</button>
+        <button class="${state.mobilePanel === "details" ? "active" : ""}" data-mobile-panel="details">Details</button>
+      </div>
+      <section class="map-panel ${state.mobilePanel === "details" ? "mobile-hidden" : ""}">
         <div class="map-toolbar">
           <div>
             <strong>${visible.length} visible listings</strong>
@@ -187,8 +204,16 @@ function renderDashboard({ visible, selectedListing, favouriteIds }) {
           ${visible.map((listing) => renderMarker(listing, favouriteIds)).join("")}
         </div>
       </section>
-      <aside class="detail-panel">
-        ${selectedListing ? renderListingDetail(selectedListing, favouriteIds) : renderEmpty("No listings in view", "Adjust filters or move the map.")}
+      <aside class="detail-panel ${state.mobilePanel === "map" ? "mobile-hidden" : ""}">
+        ${
+          selectedListing
+            ? renderListingDetail(selectedListing, favouriteIds)
+            : renderEmpty(
+                filtered.length === 0 ? "No matching listings" : "No listings in view",
+                emptyBody,
+                `<button class="secondary" data-action="clear-filters">Reset filters</button>`
+              )
+        }
       </aside>
     </div>
   `;
@@ -205,6 +230,8 @@ function renderMarker(listing, favouriteIds) {
 
 function renderListingDetail(listing, favouriteIds) {
   const locations = state.currentUser ? state.locationsByUser[state.currentUser] || [] : [];
+  const isSaved = favouriteIds.includes(listing.id);
+  const favouriteNotes = getFavouriteNotes(state);
   return `
     <article class="listing-detail">
       <img src="${listing.image}" alt="${listing.title}" />
@@ -214,9 +241,16 @@ function renderListingDetail(listing, favouriteIds) {
           <h2>${listing.title}</h2>
           <p>${listing.address}</p>
         </div>
-        <button class="save-button ${favouriteIds.includes(listing.id) ? "saved" : ""}" data-favourite="${listing.id}">
-          ${favouriteIds.includes(listing.id) ? "Saved" : "Save"}
-        </button>
+        <div class="listing-actions">
+          <button class="save-button ${isSaved ? "saved" : ""}" data-favourite="${listing.id}">
+            ${isSaved ? "Saved" : "Save"}
+          </button>
+          ${
+            listing.imported
+              ? `<button class="secondary" data-edit-import="${listing.id}">Edit</button>`
+              : ""
+          }
+        </div>
       </div>
       <dl class="facts">
         <div><dt>Price</dt><dd>$${listing.price}</dd></div>
@@ -236,6 +270,14 @@ function renderListingDetail(listing, favouriteIds) {
             : `<p class="muted">Add frequent locations to see commute estimates.</p>`
         }
       </section>
+      ${
+        isSaved
+          ? `<form class="note-form" data-form="favourite-note" data-listing-id="${listing.id}">
+              <label>Shortlist notes<textarea name="note" placeholder="Viewing impressions, tradeoffs, landlord details">${escapeHtml(favouriteNotes[listing.id] || listing.notes || "")}</textarea></label>
+              <button type="submit" class="secondary">Save notes</button>
+            </form>`
+          : `<p class="muted">Save this listing to add shortlist notes.</p>`
+      }
       <a class="external-link" href="${listing.url}" target="_blank" rel="noreferrer">Open source listing</a>
     </article>
   `;
@@ -254,6 +296,7 @@ function renderCommute(listing, location) {
 
 function renderFavourites({ allListings, favouriteIds }) {
   const favourites = allListings.filter((listing) => favouriteIds.includes(listing.id));
+  const favouriteNotes = getFavouriteNotes(state);
   return `
     <section class="page-panel">
       <div class="page-heading">
@@ -262,14 +305,19 @@ function renderFavourites({ allListings, favouriteIds }) {
       </div>
       ${
         favourites.length
-          ? `<div class="listing-grid">${favourites.map((listing) => renderListingCard(listing, favouriteIds)).join("")}</div>`
-          : renderEmpty("No favourites yet", "Save listings from the map to build your shortlist.")
+          ? `<div class="listing-grid">${favourites.map((listing) => renderListingCard(listing, favouriteIds, favouriteNotes)).join("")}</div>`
+          : renderEmpty(
+              "No favourites yet",
+              "Save listings from the map to build your shortlist.",
+              `<button data-view="dashboard">Browse map</button>`
+            )
       }
     </section>
   `;
 }
 
-function renderListingCard(listing, favouriteIds) {
+function renderListingCard(listing, favouriteIds, favouriteNotes = {}) {
+  const note = favouriteNotes[listing.id] || listing.notes || "";
   return `
     <article class="listing-card">
       <img src="${listing.image}" alt="${listing.title}" />
@@ -278,6 +326,7 @@ function renderListingCard(listing, favouriteIds) {
         <h3>${listing.title}</h3>
         <p>${listing.address}</p>
         <strong>$${listing.price}</strong>
+        ${note ? `<p class="note-preview">${escapeHtml(note)}</p>` : `<p class="muted">No shortlist notes yet.</p>`}
         <button class="secondary" data-select="${listing.id}">View on map</button>
         <button class="save-button ${favouriteIds.includes(listing.id) ? "saved" : ""}" data-favourite="${listing.id}">
           ${favouriteIds.includes(listing.id) ? "Saved" : "Save"}
@@ -290,13 +339,30 @@ function renderListingCard(listing, favouriteIds) {
 function renderCompare({ allListings, favouriteIds }) {
   const favourites = allListings.filter((listing) => favouriteIds.includes(listing.id));
   const locations = state.currentUser ? state.locationsByUser[state.currentUser] || [] : [];
-  const rows = buildComparisonRows(favourites, locations);
+  const rows = sortComparisonRows(
+    buildComparisonRows(favourites, locations, getFavouriteNotes(state)),
+    state.compareSort
+  );
   return `
     <section class="page-panel">
       <div class="page-heading">
         <h2>Compare</h2>
         <p>Side-by-side favourite listing review</p>
       </div>
+      ${
+        rows.length
+          ? `<form class="compare-controls" data-form="compare-sort">
+              <label>Sort listings
+                <select name="compareSort">
+                  ${option("default", "Saved order", state.compareSort)}
+                  ${option("price", "Lowest price", state.compareSort)}
+                  ${option("commute", locations[0] ? `Shortest commute to ${locations[0].name}` : "Shortest commute", state.compareSort)}
+                </select>
+              </label>
+              <p class="muted">Best price and fastest first commute are highlighted.</p>
+            </form>`
+          : ""
+      }
       ${
         rows.length
           ? `<div class="compare-wrap">
@@ -310,6 +376,7 @@ function renderCompare({ allListings, favouriteIds }) {
                     <th>Amenities</th>
                     <th>Availability</th>
                     <th>Commutes</th>
+                    <th>Notes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -317,7 +384,11 @@ function renderCompare({ allListings, favouriteIds }) {
                 </tbody>
               </table>
             </div>`
-          : renderEmpty("Nothing to compare", "Favourite a few listings first.")
+          : renderEmpty(
+              "Nothing to compare",
+              "Favourite a few listings first.",
+              `<button data-view="dashboard">Browse map</button>`
+            )
       }
     </section>
   `;
@@ -327,18 +398,19 @@ function renderCompareRow(row) {
   return `
     <tr>
       <td><strong>${row.title}</strong><br /><span>${row.source}</span></td>
-      <td>$${row.price}</td>
+      <td class="${row.isCheapest ? "table-highlight" : ""}">$${row.price}${row.isCheapest ? "<br /><span>Lowest</span>" : ""}</td>
       <td>${row.bedrooms === 0 ? "Studio" : row.bedrooms}</td>
       <td>${row.bathrooms}</td>
       <td>${row.amenities}</td>
       <td>${row.availability}</td>
-      <td>
+      <td class="${row.isFastest ? "table-highlight" : ""}">
         ${
           row.commutes.length
             ? row.commutes.map((commute) => `${commute.locationName}: ${commute.durationMinutes} min`).join("<br />")
             : "Add locations"
         }
       </td>
+      <td>${row.notes ? escapeHtml(row.notes) : "Unavailable"}</td>
     </tr>
   `;
 }
@@ -411,6 +483,7 @@ function renderImport(user) {
           <label>Latitude<input name="lat" type="number" step="0.001" required /></label>
           <label>Longitude<input name="lng" type="number" step="0.001" required /></label>
         </div>
+        <label>Availability<input name="availability" placeholder="Flexible" /></label>
         <label>Amenities<input name="amenities" placeholder="Parking, laundry, pet friendly" /></label>
         <label>Notes<textarea name="notes" placeholder="Viewing notes, landlord details, concerns"></textarea></label>
         <button type="submit">Import and favourite</button>
@@ -419,33 +492,112 @@ function renderImport(user) {
   `;
 }
 
-function renderEmpty(title, body) {
-  return `<div class="empty-state"><strong>${title}</strong><p>${body}</p></div>`;
+function renderEditImport({ allListings, user }) {
+  if (!user) return renderGate("Log in to edit imported listings.");
+  const listing = allListings.find((item) => item.id === state.editingListingId && item.imported);
+  if (!listing) {
+    return `
+      <section class="page-panel">
+        ${renderEmpty(
+          "Imported listing not found",
+          "Choose an imported Facebook Marketplace listing before editing.",
+          `<button data-view="dashboard">Back to map</button>`
+        )}
+      </section>
+    `;
+  }
+  return `
+    <section class="page-panel">
+      <div class="page-heading">
+        <h2>Edit Imported Listing</h2>
+        <p>Update the fields you use for mapping, favourites, and comparison.</p>
+      </div>
+      <form class="stack-form import-form" data-form="edit-import" data-listing-id="${listing.id}">
+        <label>Facebook Marketplace URL<input name="url" type="url" value="${escapeAttribute(listing.url)}" required /></label>
+        <label>Title<input name="title" value="${escapeAttribute(listing.title)}" required /></label>
+        <div class="split-row">
+          <label>Price<input name="price" type="number" min="0" value="${listing.price}" required /></label>
+          <label>Type<input name="propertyType" value="${escapeAttribute(listing.propertyType)}" /></label>
+        </div>
+        <div class="split-row">
+          <label>Bedrooms<input name="bedrooms" type="number" min="0" value="${listing.bedrooms}" /></label>
+          <label>Bathrooms<input name="bathrooms" type="number" min="0" step="0.5" value="${listing.bathrooms}" /></label>
+        </div>
+        <label>Address<input name="address" value="${escapeAttribute(listing.address)}" /></label>
+        <div class="split-row">
+          <label>Latitude<input name="lat" type="number" step="0.001" value="${listing.lat}" required /></label>
+          <label>Longitude<input name="lng" type="number" step="0.001" value="${listing.lng}" required /></label>
+        </div>
+        <label>Availability<input name="availability" value="${escapeAttribute(listing.availability || "Flexible")}" /></label>
+        <label>Amenities<input name="amenities" value="${escapeAttribute(listing.amenities.join(", "))}" /></label>
+        <label>Notes<textarea name="notes">${escapeHtml(listing.notes || "")}</textarea></label>
+        <div class="button-row">
+          <button type="submit">Save changes</button>
+          <button type="button" class="secondary" data-select="${listing.id}">Cancel</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+function renderEmpty(title, body, actionHtml = "") {
+  return `<div class="empty-state"><strong>${title}</strong><p>${body}</p>${actionHtml}</div>`;
 }
 
 function renderGate(message) {
   return `<section class="page-panel">${renderEmpty("Login required", message)}</section>`;
 }
 
-function renderToast(message) {
-  const toast = document.createElement("div");
-  toast.className = "toast";
-  toast.textContent = message;
-  document.body.append(toast);
-  window.setTimeout(() => toast.remove(), 3200);
+function renderNotice(notice) {
+  return `
+    <div class="notice ${notice.type}" role="${notice.type === "error" ? "alert" : "status"}">
+      <span>${escapeHtml(notice.message)}</span>
+      <button class="secondary" data-action="dismiss-notice" aria-label="Dismiss notice">Dismiss</button>
+    </div>
+  `;
+}
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function escapeAttribute(value = "") {
+  return escapeHtml(value).replaceAll('"', "&quot;");
 }
 
 function bindEvents() {
   document.querySelectorAll("[data-view]").forEach((button) => {
-    button.addEventListener("click", () => update({ ...state, view: button.dataset.view }));
+    button.addEventListener("click", () => update({ ...state, view: button.dataset.view, editingListingId: null }));
   });
+  document
+    .querySelector("[data-action='dismiss-notice']")
+    ?.addEventListener("click", () => update({ ...state, notice: null }));
+  document
+    .querySelector("[data-action='clear-filters']")
+    ?.addEventListener("click", () =>
+      update({ ...state, filters: createInitialState().filters, map: createInitialState().map })
+    );
   document.querySelector("[data-action='logout']")?.addEventListener("click", () => update(logoutUser(state)));
   document.querySelector("[data-form='auth']")?.addEventListener("submit", handleAuth);
   document.querySelector("[data-form='filters']")?.addEventListener("input", handleFilters);
+  document.querySelector("[data-form='compare-sort']")?.addEventListener("input", handleCompareSort);
   document.querySelector("[data-form='facebook']")?.addEventListener("submit", handleFacebookImport);
+  document.querySelector("[data-form='edit-import']")?.addEventListener("submit", handleImportedEdit);
+  document.querySelector("[data-form='favourite-note']")?.addEventListener("submit", handleFavouriteNote);
   document.querySelector("[data-form='location']")?.addEventListener("submit", handleLocation);
   document.querySelectorAll("[data-favourite]").forEach((button) => {
     button.addEventListener("click", () => action(() => update(toggleFavourite(state, button.dataset.favourite))));
+  });
+  document.querySelectorAll("[data-edit-import]").forEach((button) => {
+    button.addEventListener("click", () =>
+      update({ ...state, view: "edit-import", editingListingId: button.dataset.editImport })
+    );
+  });
+  document.querySelectorAll("[data-mobile-panel]").forEach((button) => {
+    button.addEventListener("click", () => update({ ...state, mobilePanel: button.dataset.mobilePanel }));
   });
   document.querySelectorAll("[data-select]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -454,6 +606,8 @@ function bindEvents() {
         ...state,
         view: "dashboard",
         selectedListingId: button.dataset.select,
+        editingListingId: null,
+        mobilePanel: "details",
         map: listing ? { ...state.map, centerLat: listing.lat, centerLng: listing.lng } : state.map
       });
     });
@@ -492,16 +646,49 @@ function handleFilters(event) {
   });
 }
 
+function handleCompareSort(event) {
+  const form = new FormData(event.currentTarget);
+  update({ ...state, compareSort: form.get("compareSort") });
+}
+
 function handleFacebookImport(event) {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(event.currentTarget));
-  action(() => update({ ...importFacebookListing(state, values), view: "dashboard" }));
+  action(
+    () => update({ ...importFacebookListing(state, values), view: "dashboard", mobilePanel: "details" }),
+    "Imported listing added to favourites."
+  );
+}
+
+function handleImportedEdit(event) {
+  event.preventDefault();
+  const values = Object.fromEntries(new FormData(event.currentTarget));
+  const listingId = event.currentTarget.dataset.listingId;
+  action(
+    () =>
+      update({
+        ...updateImportedListing(state, listingId, values),
+        view: "dashboard",
+        editingListingId: null,
+        mobilePanel: "details"
+      }),
+    "Imported listing updated."
+  );
+}
+
+function handleFavouriteNote(event) {
+  event.preventDefault();
+  const values = Object.fromEntries(new FormData(event.currentTarget));
+  action(
+    () => update(updateFavouriteNote(state, event.currentTarget.dataset.listingId, values.note)),
+    "Shortlist notes saved."
+  );
 }
 
 function handleLocation(event) {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(event.currentTarget));
-  action(() => update(addFrequentLocation(state, values)));
+  action(() => update(addFrequentLocation(state, values)), "Frequent location added.");
 }
 
 function nextMapState(intent) {

@@ -38,6 +38,18 @@ test("user can complete the MVP rental shortlist loop", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Smoke test basement suite" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
 
+  await page.getByLabel("Shortlist notes").fill("Strong option if parking is included.");
+  await page.getByRole("button", { name: "Save notes" }).click();
+  await expect(page.getByRole("status")).toContainText("Shortlist notes saved.");
+
+  await page.getByRole("button", { name: "Edit" }).click();
+  const editForm = page.locator("[data-form='edit-import']");
+  await editForm.getByLabel("Title").fill("Smoke test renovated suite");
+  await editForm.getByLabel("Price").fill("1500");
+  await editForm.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("heading", { name: "Smoke test renovated suite" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Imported listing updated.");
+
   await page.getByRole("button", { name: "Locations" }).click();
   const locationForm = page.locator("[data-form='location']");
   await locationForm.getByLabel("Name").fill("Work");
@@ -52,6 +64,10 @@ test("user can complete the MVP rental shortlist loop", async ({ page }) => {
   await page.getByRole("button", { name: "Compare" }).click();
   await expect(page.getByRole("heading", { name: "Compare" })).toBeVisible();
   await expect(page.getByText("Bright Beltline One Bedroom")).toBeVisible();
-  await expect(page.getByText("Smoke test basement suite")).toBeVisible();
+  await expect(page.getByText("Smoke test renovated suite")).toBeVisible();
+  await expect(page.getByText("Strong option if parking is included.")).toBeVisible();
+  await page.getByLabel("Sort listings").selectOption("price");
+  await expect(page.locator("tbody tr").first()).toContainText("Smoke test renovated suite");
+  await expect(page.locator("tbody tr").first()).toContainText("Lowest");
   await expect(page.getByText(/Work: \d+ min/)).toHaveCount(2);
 });

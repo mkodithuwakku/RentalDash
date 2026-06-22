@@ -75,8 +75,13 @@ export const defaultState = {
   favouritesByUser: {},
   importedByUser: {},
   locationsByUser: {},
+  notesByUser: {},
   view: "dashboard",
   selectedListingId: null,
+  editingListingId: null,
+  notice: null,
+  compareSort: "default",
+  mobilePanel: "map",
   filters: {
     maxPrice: 3000,
     bedrooms: "any",
@@ -127,7 +132,8 @@ export function registerUser(state, email, name = "") {
     users: [...state.users, user],
     favouritesByUser: { ...state.favouritesByUser, [user.id]: [] },
     importedByUser: { ...state.importedByUser, [user.id]: [] },
-    locationsByUser: { ...state.locationsByUser, [user.id]: [] }
+    locationsByUser: { ...state.locationsByUser, [user.id]: [] },
+    notesByUser: { ...state.notesByUser, [user.id]: {} }
   };
 }
 
@@ -158,6 +164,11 @@ export function getFavouriteIds(state) {
   return state.favouritesByUser[state.currentUser] || [];
 }
 
+export function getFavouriteNotes(state) {
+  if (!state.currentUser) return {};
+  return state.notesByUser?.[state.currentUser] || {};
+}
+
 export function toggleFavourite(state, listingId) {
   requireUser(state);
   const current = getFavouriteIds(state);
@@ -169,6 +180,23 @@ export function toggleFavourite(state, listingId) {
     favouritesByUser: {
       ...state.favouritesByUser,
       [state.currentUser]: next
+    }
+  };
+}
+
+export function updateFavouriteNote(state, listingId, note) {
+  requireUser(state);
+  if (!getFavouriteIds(state).includes(listingId)) {
+    throw new Error("Save this listing before adding notes.");
+  }
+  return {
+    ...state,
+    notesByUser: {
+      ...state.notesByUser,
+      [state.currentUser]: {
+        ...getFavouriteNotes(state),
+        [listingId]: note.trim()
+      }
     }
   };
 }
@@ -222,6 +250,52 @@ export function importFacebookListing(state, form) {
       [state.currentUser]: nextFavourites
     },
     selectedListingId: listing.id
+  };
+}
+
+export function updateImportedListing(state, listingId, form) {
+  requireUser(state);
+  const imported = state.importedByUser[state.currentUser] || [];
+  const existing = imported.find((listing) => listing.id === listingId);
+  if (!existing) {
+    throw new Error("Imported listing not found.");
+  }
+  if (!isFacebookMarketplaceUrl(form.url)) {
+    throw new Error("Paste a valid Facebook Marketplace listing URL.");
+  }
+  const duplicate = imported.find((listing) => listing.id !== listingId && listing.url === form.url);
+  if (duplicate) {
+    throw new Error("You already imported that Facebook Marketplace listing.");
+  }
+  const title = form.title.trim();
+  const price = Number(form.price);
+  const lat = Number(form.lat);
+  const lng = Number(form.lng);
+  if (!title || !Number.isFinite(price) || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error("Title, price, latitude, and longitude are required.");
+  }
+  const updated = {
+    ...existing,
+    url: form.url,
+    title,
+    price,
+    bedrooms: Number(form.bedrooms || 0),
+    bathrooms: Number(form.bathrooms || 1),
+    propertyType: form.propertyType || "Rental",
+    address: form.address.trim(),
+    lat,
+    lng,
+    amenities: parseAmenities(form.amenities),
+    availability: form.availability || "Flexible",
+    notes: form.notes?.trim() || ""
+  };
+  return {
+    ...state,
+    importedByUser: {
+      ...state.importedByUser,
+      [state.currentUser]: imported.map((listing) => (listing.id === listingId ? updated : listing))
+    },
+    selectedListingId: listingId
   };
 }
 
@@ -310,7 +384,7 @@ export function calculateCommute(listing, location, mode = "driving") {
   };
 }
 
-export function buildComparisonRows(listings, locations = []) {
+export function buildComparisonRows(listings, locations = [], notesByListing = {}) {
   return listings.map((listing) => ({
     id: listing.id,
     title: listing.title,
@@ -320,10 +394,28 @@ export function buildComparisonRows(listings, locations = []) {
     bathrooms: listing.bathrooms,
     amenities: listing.amenities.join(", ") || "Unavailable",
     availability: listing.availability || "Unavailable",
+    notes: notesByListing[listing.id] || listing.notes || "",
     commutes: locations.map((location) => ({
       locationName: location.name,
       ...calculateCommute(listing, location)
     }))
+  }));
+}
+
+export function sortComparisonRows(rows, sortKey = "default") {
+  const sorted = [...rows];
+  if (sortKey === "price") {
+    sorted.sort((a, b) => a.price - b.price);
+  }
+  if (sortKey === "commute") {
+    sorted.sort((a, b) => firstCommuteMinutes(a) - firstCommuteMinutes(b));
+  }
+  const cheapest = Math.min(...rows.map((row) => row.price));
+  const fastest = Math.min(...rows.map(firstCommuteMinutes));
+  return sorted.map((row) => ({
+    ...row,
+    isCheapest: Number.isFinite(cheapest) && row.price === cheapest,
+    isFastest: Number.isFinite(fastest) && firstCommuteMinutes(row) === fastest
   }));
 }
 
@@ -342,6 +434,10 @@ function parseAmenities(value = "") {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function firstCommuteMinutes(row) {
+  return row.commutes[0]?.durationMinutes ?? Number.POSITIVE_INFINITY;
 }
 
 function haversineKm(lat1, lon1, lat2, lon2) {

@@ -58,9 +58,13 @@ npm run test:watch
 - Logged-in users can favourite listings.
 - Logged-in users can import Facebook Marketplace listing URLs by manually entering listing details.
 - Imported Facebook listings are automatically added to favourites.
+- Logged-in users can edit imported Facebook Marketplace listings after saving.
+- Saved listings support shortlist notes that appear in detail, favourites, and compare views.
 - Logged-in users can add frequent locations with latitude and longitude.
 - Commute estimates use haversine distance and assumed driving speed, not real traffic/routing.
-- Compare shows favourite listings and commute estimates to saved locations.
+- Compare shows favourite listings, notes, sortable price/commute columns, and commute estimates to saved locations.
+- Small screens can switch between map and listing detail views.
+- Error and success messages render as dismissible notices.
 
 ## Key Decisions
 
@@ -72,9 +76,8 @@ npm run test:watch
 
 ## Next Best Work
 
-1. Smoke test the app in a browser.
-2. Improve mobile map/list ergonomics.
-3. Add edit support for imported listings.
-4. Add notes to favourites and compare.
-5. Introduce a real framework and TypeScript once the MVP behavior is stable.
-6. Add real geocoding and map provider integration.
+1. Add accessible keyboard interaction coverage for map pins and mobile toggles.
+2. Add edit/delete support for frequent locations.
+3. Add richer listing filters for parking, pets, furnishing, and availability.
+4. Introduce a real framework and TypeScript once the MVP behavior is stable.
+5. Add real geocoding and map provider integration.

@@ -14,17 +14,21 @@ Implemented:
 - Local email-based account simulation.
 - Favourites persisted in `localStorage`.
 - Facebook Marketplace URL import with manual listing fields.
+- Edit support for imported Facebook Marketplace listings.
 - Map-style listing browser with pan, zoom, viewport filtering, and price pins.
-- Compare tab for favourites.
+- Compare tab for favourites with notes, sorting, and best-value highlights.
 - Frequent locations with estimated driving commutes.
+- Mobile map/detail switching.
+- Dismissible success and error notices.
 - Node built-in test suite.
+- Browser-based Playwright smoke test for the MVP loop.
 - Project docs for context, roadmap, phases, and testing.
 
 Remaining:
 
-- Browser-based smoke testing.
-- Improved empty/loading/error states.
-- Better mobile polish.
+- Accessibility audit for keyboard and screen-reader behavior.
+- Edit/delete support for frequent locations.
+- Richer filters for pets, parking, furnishing, and availability.
 
 ## Phase 2: Real App Structure
 

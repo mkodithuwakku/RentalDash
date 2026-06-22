@@ -7,12 +7,16 @@ import {
   createInitialState,
   filterListings,
   getFavouriteIds,
+  getFavouriteNotes,
   importFacebookListing,
   isFacebookMarketplaceUrl,
   loginUser,
   registerUser,
   seedListings,
-  toggleFavourite
+  sortComparisonRows,
+  toggleFavourite,
+  updateFavouriteNote,
+  updateImportedListing
 } from "../src/rentaldash.js";
 
 test("validates Facebook Marketplace URLs", () => {
@@ -103,6 +107,57 @@ test("imports a Facebook listing and favourites it", () => {
   assert.equal(getFavouriteIds(state).includes(imported.id), true);
 });
 
+test("updates imported Facebook listing details", () => {
+  let state = registerUser(createInitialState(), "editor@example.com");
+  state = importFacebookListing(state, {
+    url: "https://www.facebook.com/marketplace/item/111",
+    title: "Original suite",
+    price: "1550",
+    bedrooms: "1",
+    bathrooms: "1",
+    propertyType: "Suite",
+    address: "Calgary, AB",
+    lat: "51.05",
+    lng: "-114.08",
+    amenities: "Parking",
+    notes: "Original note"
+  });
+
+  const listingId = state.importedByUser[state.currentUser][0].id;
+  state = updateImportedListing(state, listingId, {
+    url: "https://www.facebook.com/marketplace/item/111",
+    title: "Updated suite",
+    price: "1650",
+    bedrooms: "2",
+    bathrooms: "1.5",
+    propertyType: "Basement",
+    address: "Beltline, Calgary, AB",
+    lat: "51.044",
+    lng: "-114.071",
+    availability: "2026-08-01",
+    amenities: "Parking, Laundry",
+    notes: "Updated note"
+  });
+
+  const updated = state.importedByUser[state.currentUser][0];
+  assert.equal(updated.title, "Updated suite");
+  assert.equal(updated.price, 1650);
+  assert.equal(updated.bathrooms, 1.5);
+  assert.deepEqual(updated.amenities, ["Parking", "Laundry"]);
+  assert.equal(updated.notes, "Updated note");
+});
+
+test("saves favourite notes for comparison", () => {
+  let state = registerUser(createInitialState(), "notes@example.com");
+  state = toggleFavourite(state, "rentals-ca-001");
+  state = updateFavouriteNote(state, "rentals-ca-001", "Great light, ask about parking.");
+
+  assert.equal(getFavouriteNotes(state)["rentals-ca-001"], "Great light, ask about parking.");
+
+  const rows = buildComparisonRows([seedListings[0]], [], getFavouriteNotes(state));
+  assert.equal(rows[0].notes, "Great light, ask about parking.");
+});
+
 test("adds frequent locations and builds comparison commute rows", () => {
   let state = registerUser(createInitialState(), "commuter@example.com");
   state = addFrequentLocation(state, {
@@ -120,4 +175,27 @@ test("adds frequent locations and builds comparison commute rows", () => {
 
   const rows = buildComparisonRows([seedListings[0]], [location]);
   assert.equal(rows[0].commutes[0].locationName, "Work");
+});
+
+test("sorts comparison rows and highlights lowest price and fastest commute", () => {
+  const rows = buildComparisonRows([seedListings[0], seedListings[2]], [
+    {
+      id: "location-1",
+      name: "Work",
+      category: "Work",
+      address: "Downtown",
+      lat: 51.044,
+      lng: -114.071
+    }
+  ]);
+
+  const byPrice = sortComparisonRows(rows, "price");
+  assert.deepEqual(
+    byPrice.map((row) => row.id),
+    ["rentals-ca-001", "rentals-ca-002"]
+  );
+  assert.equal(byPrice[0].isCheapest, true);
+
+  const byCommute = sortComparisonRows(rows, "commute");
+  assert.equal(byCommute[0].isFastest, true);
 });

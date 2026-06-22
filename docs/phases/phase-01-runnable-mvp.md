@@ -14,11 +14,16 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - Local account simulation.
 - Favourites.
 - Facebook Marketplace URL import.
+- Imported listing editing.
+- Shortlist notes for saved listings.
 - Frequent locations.
 - Commute estimates.
-- Compare table.
+- Compare table with sorting and highlights.
+- Mobile map/detail switching.
+- Dismissible notices for success and error states.
 - Documentation system.
 - Node test suite.
+- Playwright smoke test.
 
 ## Technical Notes
 
@@ -26,6 +31,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - The map uses latitude and longitude math to position price pins in a simulated viewport.
 - Commutes are estimates based on haversine distance and assumed average driving speed.
 - Tests use `node --test` and import domain functions directly from `src/rentaldash.js`.
+- Browser smoke coverage uses Playwright against the local static dev server.
 
 ## Known Limitations
 
@@ -40,5 +46,6 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 
 - App runs with `npm run dev`.
 - Test suite passes with `npm test`.
+- Smoke test passes with `npm run test:smoke`.
 - Documentation identifies current architecture and next phase.
 - A user can complete the MVP loop: register, browse, favourite, import, add location, compare.

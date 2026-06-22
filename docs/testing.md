@@ -2,7 +2,7 @@
 
 ## Current Test Stack
 
-RentalDash currently uses Node's built-in test runner. This keeps Phase 1 dependency-free and runnable immediately.
+RentalDash uses Node's built-in test runner for domain logic and Playwright for the browser MVP smoke loop.
 
 ## Commands
 
@@ -18,6 +18,12 @@ Run continuously while developing:
 npm run test:watch
 ```
 
+Run the browser smoke test:
+
+```sh
+npm run test:smoke
+```
+
 ## Current Coverage
 
 The test suite covers:
@@ -27,9 +33,12 @@ The test suite covers:
 - Favourite toggling.
 - Listing filters.
 - Facebook listing import and automatic favouriting.
+- Imported Facebook listing editing.
+- Favourite shortlist notes.
 - Frequent locations.
 - Commute estimate generation.
-- Comparison row construction.
+- Comparison row construction, sorting, and highlights.
+- Browser-level MVP flow across register, favourite, import, edit, notes, locations, and compare.
 
 ## Testing Rules for Future Work
 
@@ -41,7 +50,6 @@ The test suite covers:
 
 ## Planned Additions
 
-- DOM smoke tests for the static MVP.
 - End-to-end tests after the frontend framework is chosen.
 - API integration tests after the backend exists.
 - Accessibility checks for keyboard navigation and focus behavior.
