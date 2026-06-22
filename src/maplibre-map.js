@@ -130,6 +130,31 @@ export function flyMapTo(mapState) {
   return true;
 }
 
+export function fitMapToBounds(bounds) {
+  if (!activeMap) return false;
+  suppressViewportEvent = true;
+  activeMap.fitBounds(
+    [
+      [bounds.west, bounds.south],
+      [bounds.east, bounds.north]
+    ],
+    {
+      padding: 0,
+      duration: 0,
+      maxZoom: 14
+    }
+  );
+  window.setTimeout(() => {
+    suppressViewportEvent = false;
+  }, 0);
+  const center = activeMap.getCenter();
+  return {
+    centerLat: Number(center.lat.toFixed(4)),
+    centerLng: Number(center.lng.toFixed(4)),
+    zoom: Number(activeMap.getZoom().toFixed(2))
+  };
+}
+
 function syncMarkers({ listings, favouriteIds, selectedListingId, onSelect }) {
   if (!activeMap || !window.maplibregl) return;
 

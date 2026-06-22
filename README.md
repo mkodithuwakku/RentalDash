@@ -1,6 +1,6 @@
 # RentalDash
 
-RentalDash is a runnable MVP for a rental property dashboard. It supports a MapLibre-powered listing browser with a local fallback map, user login stored locally, favourites, Facebook Marketplace URL imports, listing comparison, and frequent-location commute estimates.
+RentalDash is a runnable MVP for a rental property dashboard. It supports a MapLibre-powered listing browser with browser-location centering, place search, a local fallback map, user login stored locally, favourites, Facebook Marketplace URL imports, listing comparison, and frequent-location commute estimates.
 
 ## Run Locally
 
@@ -22,7 +22,7 @@ Then open:
 http://localhost:4173
 ```
 
-The app uses browser `localStorage`, seeded listings, MapLibre GL JS, and a small Node static server. The map defaults to OpenStreetMap raster tiles for local development; paste a MapTiler-compatible style URL in the Map Provider panel for production-style tiles.
+The app uses browser `localStorage`, seeded listings, MapLibre GL JS, browser geolocation, Nominatim place search, and a small Node static server. The map defaults to OpenStreetMap raster tiles for local development; paste a MapTiler-compatible style URL in the Map Provider panel for production-style tiles.
 
 ## Test
 

@@ -10,6 +10,7 @@ import {
   getUserListings,
   getVisibleListings,
   importFacebookListing,
+  locationAreaBounds,
   loginUser,
   logoutUser,
   markerPosition,
@@ -21,6 +22,7 @@ import {
   updateImportedListing
 } from "./rentaldash.js";
 import {
+  fitMapToBounds,
   flyMapTo,
   getMapStyleUrl,
   initMapLibreMap,
@@ -102,6 +104,7 @@ function render() {
 
   bindEvents();
   initDashboardMap({ filtered, visible, favouriteIds });
+  maybeCenterOnUserLocation();
 }
 
 function navButton(view, label) {
@@ -214,9 +217,14 @@ function renderDashboard({ filtered, visible, selectedListing, favouriteIds }) {
       <section class="map-panel ${state.mobilePanel === "details" ? "mobile-hidden" : ""}">
         <div class="map-toolbar">
           <div>
-            <strong>${visible.length} visible listings</strong>
+            <strong><span data-visible-count>${visible.length}</span> visible listings</strong>
             <span data-map-zoom-label>MapLibre · Zoom ${Number(state.map.zoom).toFixed(1)}</span>
           </div>
+          <form class="map-search" data-form="map-search" role="search">
+            <label class="visually-hidden" for="map-search-input">Search map location</label>
+            <input id="map-search-input" name="query" value="${escapeAttribute(state.map.searchQuery || "")}" placeholder="Search city, neighbourhood, or address" autocomplete="off" />
+            <button type="submit">Search</button>
+          </form>
           <div class="map-controls">
             <button data-map="west" title="Pan west">←</button>
             <button data-map="north" title="Pan north">↑</button>
@@ -617,6 +625,7 @@ function bindEvents() {
   document.querySelector("[data-form='auth']")?.addEventListener("submit", handleAuth);
   document.querySelector("[data-form='filters']")?.addEventListener("input", handleFilters);
   document.querySelector("[data-form='map-provider']")?.addEventListener("submit", handleMapProvider);
+  document.querySelector("[data-form='map-search']")?.addEventListener("submit", handleMapSearch);
   document.querySelector("[data-form='compare-sort']")?.addEventListener("input", handleCompareSort);
   document.querySelector("[data-form='facebook']")?.addEventListener("submit", handleFacebookImport);
   document.querySelector("[data-form='edit-import']")?.addEventListener("submit", handleImportedEdit);
@@ -677,6 +686,48 @@ function initDashboardMap({ filtered, visible, favouriteIds }) {
   });
 }
 
+function maybeCenterOnUserLocation() {
+  if (state.view !== "dashboard" || state.map.userLocationStatus !== "pending") return;
+  if (!navigator.geolocation) {
+    state = {
+      ...state,
+      map: { ...state.map, userLocationStatus: "unavailable" }
+    };
+    saveState();
+    return;
+  }
+
+  state = {
+    ...state,
+    map: { ...state.map, userLocationStatus: "requesting" }
+  };
+  saveState();
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      moveMapToBounds(locationAreaBounds(lat, lng), {
+        centerLat: lat,
+        centerLng: lng,
+        userLocationStatus: "granted"
+      });
+    },
+    () => {
+      state = {
+        ...state,
+        map: { ...state.map, userLocationStatus: "denied" }
+      };
+      saveState();
+    },
+    {
+      enableHighAccuracy: false,
+      maximumAge: 300000,
+      timeout: 8000
+    }
+  );
+}
+
 function selectListing(listingId) {
   const listing = getUserListings(state).find((item) => item.id === listingId);
   update({
@@ -727,21 +778,96 @@ function handleMapProvider(event) {
   update({ ...state, notice: { type: "success", message: "Map style saved." } });
 }
 
+async function handleMapSearch(event) {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const query = String(form.get("query") || "").trim();
+  if (!query) return;
+
+  state = { ...state, map: { ...state.map, searchQuery: query } };
+  saveState();
+
+  try {
+    const result = await geocodeSearch(query);
+    if (!result) {
+      update({ ...state, notice: { type: "error", message: "No map result found for that search." } });
+      return;
+    }
+    moveMapToBounds(result.bounds || locationAreaBounds(result.lat, result.lng), {
+      centerLat: result.lat,
+      centerLng: result.lng,
+      searchQuery: query
+    });
+  } catch {
+    update({ ...state, notice: { type: "error", message: "Map search is unavailable right now." } });
+  }
+}
+
 function handleMapControl(intent) {
   const nextMap = nextMapState(intent);
   state = { ...state, map: nextMap };
   saveState();
-  updateMapToolbar(nextMap);
+  updateMapStats(nextMap);
   if (!flyMapTo(nextMap)) {
     update(state);
   }
 }
 
-function updateMapToolbar(mapState) {
+function moveMapToBounds(bounds, extraMapState = {}) {
+  const fitResult = fitMapToBounds(bounds);
+  const { centerLat, centerLng, zoom, ...metadata } = extraMapState;
+  const fittedMapState = fitResult || {
+    centerLat: centerLat ?? state.map.centerLat,
+    centerLng: centerLng ?? state.map.centerLng,
+    zoom: zoom ?? 12
+  };
+  const nextMap = {
+    ...state.map,
+    ...fittedMapState,
+    ...metadata
+  };
+  state = { ...state, map: nextMap };
+  saveState();
+  updateMapStats(nextMap);
+  if (!fitResult) {
+    update(state);
+  }
+}
+
+function updateMapStats(mapState) {
   const label = document.querySelector("[data-map-zoom-label]");
   if (label) {
     label.textContent = `MapLibre · Zoom ${Number(mapState.zoom).toFixed(1)}`;
   }
+  const count = document.querySelector("[data-visible-count]");
+  if (count) {
+    const allListings = getUserListings(state);
+    const visibleListings = getVisibleListings(filterListings(allListings, state.filters, getFavouriteIds(state)), mapState);
+    count.textContent = visibleListings.length;
+  }
+}
+
+async function geocodeSearch(query) {
+  const endpoint = new URL("https://nominatim.openstreetmap.org/search");
+  endpoint.searchParams.set("format", "jsonv2");
+  endpoint.searchParams.set("limit", "1");
+  endpoint.searchParams.set("q", query);
+  const response = await fetch(endpoint);
+  if (!response.ok) throw new Error("Search failed");
+  const [result] = await response.json();
+  if (!result) return null;
+  return {
+    lat: Number(result.lat),
+    lng: Number(result.lon),
+    bounds: parseGeocodeBounds(result.boundingbox)
+  };
+}
+
+function parseGeocodeBounds(boundingbox) {
+  if (!Array.isArray(boundingbox) || boundingbox.length !== 4) return null;
+  const [south, north, west, east] = boundingbox.map(Number);
+  if (![south, north, west, east].every(Number.isFinite)) return null;
+  return { south, north, west, east };
 }
 
 function handleFacebookImport(event) {

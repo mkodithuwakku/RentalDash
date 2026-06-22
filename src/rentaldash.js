@@ -91,7 +91,9 @@ export const defaultState = {
   map: {
     centerLat: 51.8,
     centerLng: -119.5,
-    zoom: 4
+    zoom: 4,
+    userLocationStatus: "pending",
+    searchQuery: ""
   }
 };
 
@@ -366,6 +368,19 @@ export function markerPosition(listing, mapState) {
   return {
     left: clamp(x, 4, 92),
     top: clamp(y, 8, 88)
+  };
+}
+
+export function locationAreaBounds(lat, lng, areaKm2 = 100) {
+  const sideKm = Math.sqrt(areaKm2);
+  const halfSideKm = sideKm / 2;
+  const latDelta = halfSideKm / 111.32;
+  const lngDelta = halfSideKm / (111.32 * Math.cos(toRad(lat)));
+  return {
+    north: lat + latDelta,
+    south: lat - latDelta,
+    east: lng + lngDelta,
+    west: lng - lngDelta
   };
 }
 

@@ -233,8 +233,8 @@ label {
   min-height: 72px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--line);
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(140px, auto) minmax(240px, 1fr) auto;
   gap: 14px;
   align-items: center;
   background: white;
@@ -251,6 +251,26 @@ label {
   flex-wrap: wrap;
   gap: 6px;
   justify-content: flex-end;
+}
+
+.map-search {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.map-search input {
+  min-height: 40px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .map-controls button {
@@ -653,6 +673,8 @@ th {
   }
 
   .facts,
+  .map-toolbar,
+  .map-search,
   .button-row,
   .split-row {
     grid-template-columns: 1fr;

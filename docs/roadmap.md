@@ -17,6 +17,8 @@ Implemented:
 - Edit support for imported Facebook Marketplace listings.
 - Map-style listing browser with pan, zoom, viewport filtering, and price pins.
 - MapLibre GL JS integration with configurable style URL and fallback map rendering.
+- Browser geolocation centering to a 100 square km area around the user.
+- Map place search using Nominatim in the static MVP.
 - Compare tab for favourites with notes, sorting, and best-value highlights.
 - Frequent locations with estimated driving commutes.
 - Mobile map/detail switching.
@@ -27,7 +29,7 @@ Implemented:
 
 Remaining:
 
-- Geocoding for imported listings and frequent locations.
+- Provider-backed geocoding for imported listings and frequent locations.
 - Route-provider integration for accurate commute times.
 - Accessibility audit for keyboard and screen-reader behavior.
 - Edit/delete support for frequent locations.
@@ -54,7 +56,7 @@ Goals:
 
 - Integrate Mapbox, MapLibre, or Google Maps. MapLibre is the selected first provider.
 - Use real marker clustering.
-- Add geocoding for imported listings and frequent locations.
+- Add provider-backed geocoding for imported listings and frequent locations.
 - Add viewport-based API queries.
 
 ## Phase 4: Listing Source Integrations

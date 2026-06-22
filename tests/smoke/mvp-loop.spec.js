@@ -1,16 +1,35 @@
 import { expect, test } from "@playwright/test";
 
-test("user can complete the MVP rental shortlist loop", async ({ page }) => {
+test("user can complete the MVP rental shortlist loop", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 53.543, longitude: -113.519 });
+  await page.route("https://nominatim.openstreetmap.org/search**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          lat: "51.0447",
+          lon: "-114.0719",
+          boundingbox: ["51.0000", "51.0900", "-114.1400", "-114.0000"]
+        }
+      ])
+    });
+  });
+
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "RentalDash" })).toBeVisible();
-  await expect(page.getByText("4 visible listings")).toBeVisible();
   await expect(page.getByLabel("Style URL")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.maplibregl?.Map))).toBe(true);
   await expect.poll(() => page.evaluate(() => Boolean(document.querySelector(".maplibre-ready")))).toBe(true);
+  await expect.poll(() => page.locator("[data-visible-count]").innerText()).toBe("1");
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   await page.locator(".maplibregl-ctrl-zoom-in").click();
   await page.getByRole("button", { name: "+" }).first().click();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await page.getByLabel("Search map location").fill("Beltline Calgary");
+  await page.getByRole("button", { name: "Search" }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).map.searchQuery)).toBe("Beltline Calgary");
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 
   await page.getByLabel("Email").fill("smoke@example.com");

@@ -10,6 +10,8 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 
 - Static app entry point.
 - MapLibre-powered dashboard with fallback map rendering.
+- Browser geolocation map centering.
+- Map place search.
 - Seed listings.
 - Local account simulation.
 - Favourites.
@@ -30,6 +32,8 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - App state is stored in `localStorage` under `rentaldash.state.v1`.
 - MapLibre GL JS renders real map tiles when the configured style URL is reachable; the fallback map uses latitude and longitude math to position price pins.
 - The Map Provider panel stores an optional MapTiler or compatible style URL in `localStorage` under `rentaldash.mapStyleUrl`.
+- Browser geolocation fits the dashboard to a 100 square km area around the user when permission is granted.
+- Map search calls Nominatim and fits MapLibre to the returned result bounds.
 - Commutes are estimates based on haversine distance and assumed average driving speed.
 - Tests use `node --test` and import domain functions directly from `src/rentaldash.js`.
 - Browser smoke coverage uses Playwright against the local static dev server.
@@ -39,7 +43,8 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - No real authentication security.
 - No backend database.
 - The default development style uses OpenStreetMap raster tiles; production tiles require a MapTiler or compatible style URL.
-- No geocoding yet.
+- Imported listings and frequent locations still require manual coordinates.
+- Nominatim search is suitable for MVP development only; production geocoding should use a provider adapter.
 - No real routing provider.
 - No direct Rentals.ca or REW integration yet.
 - Facebook Marketplace import requires manual fields.

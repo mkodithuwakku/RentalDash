@@ -10,6 +10,7 @@ import {
   getFavouriteNotes,
   importFacebookListing,
   isFacebookMarketplaceUrl,
+  locationAreaBounds,
   loginUser,
   registerUser,
   seedListings,
@@ -198,4 +199,11 @@ test("sorts comparison rows and highlights lowest price and fastest commute", ()
 
   const byCommute = sortComparisonRows(rows, "commute");
   assert.equal(byCommute[0].isFastest, true);
+});
+
+test("calculates a 100 square km location search area", () => {
+  const bounds = locationAreaBounds(53.5461, -113.4938);
+  assert.equal(Number((bounds.north - bounds.south).toFixed(3)), 0.09);
+  assert.equal(bounds.west < -113.4938, true);
+  assert.equal(bounds.east > -113.4938, true);
 });
