@@ -9,6 +9,7 @@ import {
   getFavouriteIds,
   getFavouriteNotes,
   getListingSourceOptions,
+  getUserListings,
   importFacebookListing,
   importListingFeed,
   isFacebookMarketplaceUrl,
@@ -110,8 +111,8 @@ test("imports a Facebook listing and favourites it", () => {
   assert.equal(getFavouriteIds(state).includes(imported.id), true);
 });
 
-test("imports approved listing feeds and exposes source filter options", () => {
-  let state = registerUser(createInitialState(), "feeds@example.com");
+test("imports approved listing feeds into the public catalog and exposes source filter options", () => {
+  let state = createInitialState();
   const firstImport = importListingFeed(state, {
     sourceName: "Partner Feed",
     sourceUrl: "https://partner.example/feed.json",
@@ -143,12 +144,13 @@ test("imports approved listing feeds and exposes source filter options", () => {
     totalCount: 1
   });
 
-  const imported = state.sourceListingsByUser[state.currentUser][0];
+  const imported = state.publicSourceListings[0];
   assert.equal(imported.source, "Partner Feed");
   assert.equal(imported.price, 1725);
   assert.equal(imported.feedImported, true);
   assert.deepEqual(imported.amenities, ["Parking", "Laundry"]);
   assert.equal(getListingSourceOptions([...seedListings, imported]).includes("Partner Feed"), true);
+  assert.equal(getUserListings(state).some((listing) => listing.id === imported.id), true);
 
   const secondImport = importListingFeed(state, {
     sourceName: "Partner Feed",
@@ -169,11 +171,11 @@ test("imports approved listing feeds and exposes source filter options", () => {
 
   assert.equal(secondImport.summary.addedCount, 0);
   assert.equal(secondImport.summary.updatedCount, 1);
-  assert.equal(secondImport.state.sourceListingsByUser[state.currentUser][0].price, 1695);
+  assert.equal(secondImport.state.publicSourceListings[0].price, 1695);
 });
 
 test("rejects listing feed imports without authorization confirmation", () => {
-  const state = registerUser(createInitialState(), "blocked-feed@example.com");
+  const state = createInitialState();
   assert.throws(
     () =>
       importListingFeed(state, {

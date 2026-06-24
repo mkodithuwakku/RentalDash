@@ -74,7 +74,7 @@ export const defaultState = {
   users: [],
   favouritesByUser: {},
   importedByUser: {},
-  sourceListingsByUser: {},
+  publicSourceListings: [],
   locationsByUser: {},
   notesByUser: {},
   view: "dashboard",
@@ -135,7 +135,6 @@ export function registerUser(state, email, name = "") {
     users: [...state.users, user],
     favouritesByUser: { ...state.favouritesByUser, [user.id]: [] },
     importedByUser: { ...state.importedByUser, [user.id]: [] },
-    sourceListingsByUser: { ...state.sourceListingsByUser, [user.id]: [] },
     locationsByUser: { ...state.locationsByUser, [user.id]: [] },
     notesByUser: { ...state.notesByUser, [user.id]: {} }
   };
@@ -160,8 +159,8 @@ export function getCurrentUser(state) {
 
 export function getUserListings(state) {
   const imported = state.currentUser ? state.importedByUser[state.currentUser] || [] : [];
-  const sourceListings = state.currentUser ? state.sourceListingsByUser?.[state.currentUser] || [] : [];
-  return [...seedListings, ...imported, ...sourceListings];
+  const publicSourceListings = state.publicSourceListings || [];
+  return [...seedListings, ...publicSourceListings, ...imported];
 }
 
 export function getListingSourceOptions(listings) {
@@ -311,7 +310,6 @@ export function updateImportedListing(state, listingId, form) {
 }
 
 export function importListingFeed(state, form) {
-  requireUser(state);
   if (form.complianceConfirmed !== "on" && form.complianceConfirmed !== true) {
     throw new Error("Confirm that this feed is authorized before importing listings.");
   }
@@ -327,7 +325,7 @@ export function importListingFeed(state, form) {
       index
     })
   );
-  const current = state.sourceListingsByUser?.[state.currentUser] || [];
+  const current = state.publicSourceListings || [];
   const currentById = new Map(current.map((listing) => [listing.id, listing]));
   let addedCount = 0;
   let updatedCount = 0;
@@ -344,10 +342,7 @@ export function importListingFeed(state, form) {
   return {
     state: {
       ...state,
-      sourceListingsByUser: {
-        ...state.sourceListingsByUser,
-        [state.currentUser]: [...currentById.values()]
-      }
+      publicSourceListings: [...currentById.values()]
     },
     summary: {
       addedCount,

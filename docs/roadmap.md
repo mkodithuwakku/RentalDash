@@ -15,7 +15,7 @@ Implemented:
 - Favourites persisted in `localStorage`.
 - Facebook Marketplace URL import with manual listing fields.
 - Edit support for imported Facebook Marketplace listings.
-- Local authorized JSON listing feed imports through a source-adapter path.
+- Public catalog listing imports through a local authorized JSON source-adapter path.
 - Map-style listing browser with pan, zoom, viewport filtering, and price pins.
 - MapLibre GL JS integration with configurable style URL and fallback map rendering.
 - Browser geolocation centering to a 100 square km area around the user.
@@ -33,6 +33,7 @@ Remaining:
 - Provider-backed geocoding for imported listings and frequent locations.
 - Route-provider integration for accurate commute times.
 - Accessibility audit for keyboard and screen-reader behavior.
+- Backend-backed source sync jobs and stale listing expiry.
 - Edit support for frequent locations.
 - Richer filters for pets, parking, furnishing, and availability.
 
@@ -66,7 +67,7 @@ Status: In progress.
 
 Goals:
 
-- Build source adapter interface. Initial local JSON feed import is implemented.
+- Build source adapter interface. Initial local JSON feed import into the public catalog is implemented.
 - Confirm compliant access path for Rentals.ca.
 - Confirm compliant access path for REW.
 - Add ingestion jobs.

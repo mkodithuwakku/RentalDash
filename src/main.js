@@ -40,10 +40,20 @@ let state = loadState();
 function loadState() {
   try {
     const stored = JSON.parse(localStorage.getItem(storageKey));
-    return stored ? { ...createInitialState(), ...stored } : createInitialState();
+    return stored ? migrateStoredState({ ...createInitialState(), ...stored }) : createInitialState();
   } catch {
     return createInitialState();
   }
+}
+
+function migrateStoredState(stored) {
+  if ((stored.publicSourceListings || []).length || !stored.sourceListingsByUser) {
+    return stored;
+  }
+  return {
+    ...stored,
+    publicSourceListings: Object.values(stored.sourceListingsByUser).flat()
+  };
 }
 
 function saveState() {
@@ -200,7 +210,7 @@ function option(value, label, selected) {
 function renderView(context) {
   if (state.view === "compare") return renderCompare(context);
   if (state.view === "locations") return renderLocations(context);
-  if (state.view === "sources") return renderSources(context.user);
+  if (state.view === "sources") return renderSources();
   if (state.view === "import") return renderImport(context.user);
   if (state.view === "edit-import") return renderEditImport(context);
   if (state.view === "favourites") return renderFavourites(context);
@@ -504,15 +514,14 @@ function renderLocation(location) {
   `;
 }
 
-function renderSources(user) {
-  if (!user) return renderGate("Log in to import approved listing feeds.");
-  const sourceListings = state.sourceListingsByUser?.[state.currentUser] || [];
+function renderSources() {
+  const sourceListings = state.publicSourceListings || [];
   return `
     <section class="page-panel two-column">
       <div>
         <div class="page-heading">
-          <h2>Listing Sources</h2>
-          <p>Import authorized JSON feeds from landlords, property managers, or data partners.</p>
+          <h2>Public Listing Catalog</h2>
+          <p>Import authorized JSON feeds into the app-level catalog users see when they open the site.</p>
         </div>
         <form class="stack-form source-form" data-form="source-feed">
           <label>Source name<input name="sourceName" placeholder="Example Property Manager" required /></label>
@@ -527,13 +536,13 @@ function renderSources(user) {
       </div>
       <div class="source-summary">
         <div class="page-heading">
-          <h2>Imported Feed Listings</h2>
-          <p>${sourceListings.length} listings from approved feeds</p>
+          <h2>Catalog Feed Listings</h2>
+          <p>${sourceListings.length} public listings from approved feeds</p>
         </div>
         ${
           sourceListings.length
             ? `<div class="listing-grid compact-grid">${sourceListings.map(renderSourceListingCard).join("")}</div>`
-            : renderEmpty("No feed listings yet", "Import an authorized JSON feed to add live-source listings to the map.")
+            : renderEmpty("No feed listings yet", "Import an authorized JSON feed to add source listings for every visitor.")
         }
       </div>
     </section>

@@ -17,7 +17,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - Favourites.
 - Facebook Marketplace URL import.
 - Imported listing editing.
-- Authorized JSON listing feed import for local source-adapter testing.
+- Public catalog listing import from authorized JSON feeds for local source-adapter testing.
 - Shortlist notes for saved listings.
 - Frequent locations.
 - Commute estimates.
@@ -36,7 +36,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - The Map Provider panel stores an optional MapTiler or compatible style URL in `localStorage` under `rentaldash.mapStyleUrl`.
 - Browser geolocation fits the dashboard to a 100 square km area around the user when permission is granted.
 - Map search calls Nominatim and fits MapLibre to the returned result bounds.
-- The Sources tab imports authorized JSON feeds into per-user `sourceListingsByUser` state and deduplicates listings by source plus external ID or URL.
+- The Sources tab imports authorized JSON feeds into app-level `publicSourceListings` state and deduplicates listings by source plus external ID or URL.
 - Commutes are estimates based on haversine distance and assumed average driving speed.
 - Tests use `node --test` and import domain functions directly from `src/rentaldash.js`.
 - Browser smoke coverage uses Playwright against the local static dev server.
@@ -45,6 +45,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 
 - No real authentication security.
 - No backend database.
+- Public catalog feed imports are local to the browser until backend source sync exists.
 - The default development style uses OpenStreetMap raster tiles; production tiles require a MapTiler or compatible style URL.
 - Imported listings and frequent locations still require manual coordinates.
 - Nominatim search is suitable for MVP development only; production geocoding should use a provider adapter.

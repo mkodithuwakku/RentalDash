@@ -45,14 +45,6 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).map.searchQuery)).toBe("Beltline Calgary");
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 
-  await page.getByLabel("Email").fill("smoke@example.com");
-  await page.getByLabel("Name").fill("Smoke Tester");
-  await page.getByRole("button", { name: "Register" }).click();
-
-  await expect(page.getByText("smoke@example.com")).toBeVisible();
-  await page.getByLabel("Select Bright Beltline One Bedroom").click();
-  await page.getByRole("button", { name: "Save" }).first().click();
-
   await page.getByRole("button", { name: "Sources" }).click();
   const sourceForm = page.locator("[data-form='source-feed']");
   await sourceForm.getByLabel("Source name").fill("Smoke Partner Feed");
@@ -81,6 +73,16 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
   await expect(page.getByText("Smoke partner rental")).toBeVisible();
   await page.locator("[data-form='filters']").getByLabel("Source").selectOption("Smoke Partner Feed");
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).filters.source)).toBe("Smoke Partner Feed");
+  await page.locator("[data-form='filters']").getByLabel("Source").selectOption("any");
+  await page.locator(".nav-tabs").getByRole("button", { name: "Map" }).click();
+
+  await page.getByLabel("Email").fill("smoke@example.com");
+  await page.getByLabel("Name").fill("Smoke Tester");
+  await page.getByRole("button", { name: "Register" }).click();
+
+  await expect(page.getByText("smoke@example.com")).toBeVisible();
+  await page.getByLabel("Select Bright Beltline One Bedroom").click();
+  await page.getByRole("button", { name: "Save" }).first().click();
 
   await page.getByRole("button", { name: "Favourites" }).click();
   await expect(page.getByRole("heading", { name: "Favourites" })).toBeVisible();
