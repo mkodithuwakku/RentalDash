@@ -36,11 +36,12 @@ The test suite covers:
 - Imported Facebook listing editing.
 - Public catalog JSON listing feed import, normalization, dedupe, and source filter discovery.
 - Checked-in Canada catalog feed validity and startup smoke coverage.
+- MapLibre stays available after pan/zoom interactions when raster tile requests fail.
 - Favourite shortlist notes.
 - Frequent locations.
 - Commute estimate generation.
 - Comparison row construction, sorting, and highlights.
-- Browser-level MVP flow across MapLibre bootstrapping, zoom stability, fallback visibility, browser geolocation, map search, anonymous public source feed import, register, favourite, Facebook import, edit, notes, locations, and compare.
+- Browser-level MVP flow across MapLibre bootstrapping, zoom stability, failed tile handling, fallback visibility, browser geolocation, map search, anonymous public source feed import, register, favourite, Facebook import, edit, notes, locations, and compare.
 
 ## Testing Rules for Future Work
 

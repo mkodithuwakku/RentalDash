@@ -106,7 +106,11 @@ export function initMapLibreMap({
   activeMap.once("styledata", markReady);
   activeMap.once("load", markReady);
 
-  activeMap.on("error", () => markMapUnavailable(container));
+  activeMap.on("error", (event) => {
+    if (isFatalMapLibreError(event)) {
+      markMapUnavailable(container);
+    }
+  });
   activeMap.on("webglcontextlost", () => markMapUnavailable(container));
 
   activeMap.on("moveend", () => {
@@ -193,6 +197,18 @@ function markMapUnavailable(container) {
   if (mapErrorCount >= 3) {
     container.classList.add("maplibre-unavailable");
   }
+}
+
+export function isFatalMapLibreError(event) {
+  const error = event?.error || event;
+  const message = String(error?.message || "").toLowerCase();
+  const status = error?.status || error?.statusCode;
+
+  if (event?.tile || event?.sourceId || status || message.includes("tile")) {
+    return false;
+  }
+
+  return message.includes("webgl") || message.includes("style");
 }
 
 function clampZoom(zoom) {

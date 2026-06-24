@@ -771,7 +771,7 @@ function initDashboardMap({ filtered, visible, favouriteIds }) {
     onViewportChange: (mapState) => {
       state = {
         ...state,
-        map: mapState,
+        map: { ...state.map, ...mapState },
         selectedListingId:
           getVisibleListings(filtered, mapState).some((listing) => listing.id === state.selectedListingId)
             ? state.selectedListingId

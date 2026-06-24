@@ -148,3 +148,21 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
   await expect(page.locator("tbody tr").first()).toContainText("Lowest");
   await expect(page.getByText(/Work: \d+ min/)).toHaveCount(2);
 });
+
+test("map remains available when tile requests fail during interaction", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 53.543, longitude: -113.519 });
+  await page.route("https://tile.openstreetmap.org/**", async (route) => {
+    await route.abort();
+  });
+
+  await page.goto("/");
+
+  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector(".maplibre-ready")))).toBe(true);
+  await page.locator(".maplibregl-ctrl-zoom-in").click();
+  await page.getByRole("button", { name: "+" }).first().click();
+  await page.getByRole("button", { name: "→" }).click();
+
+  await expect(page.locator(".map-canvas")).not.toHaveClass(/maplibre-unavailable/);
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+});
