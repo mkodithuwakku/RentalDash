@@ -85,7 +85,7 @@ npm run test:watch
 
 - Phase 1 keeps the app static and framework-free, but now includes MapLibre for real map rendering.
 - Core behavior lives in `src/rentaldash.js` so it can be tested without a browser.
-- MapLibre is loaded from `node_modules` by the static server instead of through a bundler.
+- MapLibre browser assets are vendored under `vendor/maplibre-gl/` so static deployments do not depend on `node_modules`.
 - MapTiler or another tile provider should be configured by pasting a style URL in the Map Provider panel; the checked-in default is an OpenStreetMap raster style for development only.
 - Nominatim powers the current place search in the static MVP; production should move geocoding behind a provider adapter with rate limits and API-key configuration.
 - Documentation must be updated with implementation changes.
