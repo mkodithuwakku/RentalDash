@@ -13,6 +13,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - Browser geolocation map centering.
 - Map place search.
 - Seed listings.
+- Startup-loaded Canada catalog feed.
 - Local account simulation.
 - Favourites.
 - Facebook Marketplace URL import.
@@ -36,6 +37,7 @@ Create a version of RentalDash that can run immediately and demonstrate the core
 - The Map Provider panel stores an optional MapTiler or compatible style URL in `localStorage` under `rentaldash.mapStyleUrl`.
 - Browser geolocation fits the dashboard to a 100 square km area around the user when permission is granted.
 - Map search calls Nominatim and fits MapLibre to the returned result bounds.
+- The app fetches `data/canada-rental-catalog.json` on startup and imports it into the public catalog.
 - The Sources tab imports authorized JSON feeds into app-level `publicSourceListings` state and deduplicates listings by source plus external ID or URL.
 - Commutes are estimates based on haversine distance and assumed average driving speed.
 - Tests use `node --test` and import domain functions directly from `src/rentaldash.js`.

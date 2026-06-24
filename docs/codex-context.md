@@ -43,6 +43,7 @@ npm run test:watch
 ## Architecture
 
 - `index.html`: Browser entry point.
+- `data/canada-rental-catalog.json`: Startup-loaded public catalog feed for Canada-wide browsing development.
 - `src/main.js`: DOM rendering, event binding, local persistence, and UI flow.
 - `src/maplibre-map.js`: MapLibre initialization, marker rendering, map style configuration, and fallback handling.
 - `src/rentaldash.js`: Testable domain logic and seeded data.
@@ -70,6 +71,7 @@ npm run test:watch
 - Imported Facebook listings are automatically added to favourites.
 - Logged-in users can edit imported Facebook Marketplace listings after saving.
 - Visitors can browse seed and public catalog listings before logging in.
+- On startup, the app fetches `data/canada-rental-catalog.json` and merges it into `publicSourceListings`.
 - The Sources tab can import authorized JSON listing feeds from landlords, property managers, or data partners into the app-level public catalog.
 - Feed imports are normalized, deduplicated by source/external ID or URL, and stored locally in `publicSourceListings`.
 - Saved listings support shortlist notes that appear in detail, favourites, and compare views.
@@ -90,6 +92,7 @@ npm run test:watch
 - Third-party listing access must be handled through compliant APIs, feeds, or approved source adapters in later phases.
 - Facebook Marketplace import is manual-first because automatic extraction may be unreliable or disallowed.
 - Source integrations are adapter-first: the static MVP supports local authorized JSON feed import into a public catalog, while direct provider pulls should wait for approved API/feed access and backend secrets/scheduling.
+- The checked-in Canada catalog feed is the default development adapter; production should replace it with backend-backed approved provider feeds.
 
 ## Next Best Work
 

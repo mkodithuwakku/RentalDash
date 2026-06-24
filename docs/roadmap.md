@@ -11,6 +11,7 @@ Implemented:
 - Zero-dependency static web app.
 - Node static dev server.
 - Seed rental listings from Rentals.ca and REW-style sources.
+- Startup-loaded Canada catalog feed for public browsing development.
 - Local email-based account simulation.
 - Favourites persisted in `localStorage`.
 - Facebook Marketplace URL import with manual listing fields.

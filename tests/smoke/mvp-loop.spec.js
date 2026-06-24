@@ -22,7 +22,12 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
   await expect(page.getByLabel("Style URL")).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(window.maplibregl?.Map))).toBe(true);
   await expect.poll(() => page.evaluate(() => Boolean(document.querySelector(".maplibre-ready")))).toBe(true);
-  await expect.poll(() => page.locator("[data-visible-count]").innerText()).toBe("1");
+  await expect
+    .poll(async () => Number(await page.locator("[data-visible-count]").innerText()))
+    .toBeGreaterThanOrEqual(1);
+  await expect(page.locator("[data-form='filters']").getByLabel("Source")).toContainText(
+    "RentalDash Canada Catalog"
+  );
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   await page.locator(".maplibregl-ctrl-zoom-in").click();
   await page.getByRole("button", { name: "+" }).first().click();
@@ -81,6 +86,7 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
   await page.getByRole("button", { name: "Register" }).click();
 
   await expect(page.getByText("smoke@example.com")).toBeVisible();
+  await page.locator("[data-form='filters']").getByLabel("Source").selectOption("Rentals.ca");
   await page.getByLabel("Select Bright Beltline One Bedroom").click();
   await page.getByRole("button", { name: "Save" }).first().click();
 

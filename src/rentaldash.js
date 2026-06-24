@@ -75,6 +75,8 @@ export const defaultState = {
   favouritesByUser: {},
   importedByUser: {},
   publicSourceListings: [],
+  catalogFeedStatus: "idle",
+  catalogFeedSyncedAt: null,
   locationsByUser: {},
   notesByUser: {},
   view: "dashboard",

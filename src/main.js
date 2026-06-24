@@ -34,6 +34,7 @@ import {
 } from "./maplibre-map.js";
 
 const storageKey = "rentaldash.state.v1";
+const canadaCatalogFeedUrl = "/data/canada-rental-catalog.json";
 const app = document.querySelector("#app");
 let state = loadState();
 
@@ -119,6 +120,32 @@ function render() {
   bindEvents();
   initDashboardMap({ filtered, visible, favouriteIds });
   maybeCenterOnUserLocation();
+}
+
+async function loadCanadaCatalogFeed() {
+  state = { ...state, catalogFeedStatus: "loading" };
+  saveState();
+  try {
+    const response = await fetch(canadaCatalogFeedUrl);
+    if (!response.ok) throw new Error("Catalog feed unavailable");
+    const feed = await response.json();
+    const result = importListingFeed(state, {
+      sourceName: feed.sourceName || "RentalDash Canada Catalog",
+      sourceUrl: feed.sourceUrl || canadaCatalogFeedUrl,
+      complianceConfirmed: true,
+      payload: JSON.stringify(feed.listings || feed)
+    });
+    state = {
+      ...result.state,
+      catalogFeedStatus: "synced",
+      catalogFeedSyncedAt: new Date().toISOString()
+    };
+    saveState();
+    render();
+  } catch {
+    state = { ...state, catalogFeedStatus: "error" };
+    saveState();
+  }
 }
 
 function navButton(view, label) {
@@ -516,12 +543,18 @@ function renderLocation(location) {
 
 function renderSources() {
   const sourceListings = state.publicSourceListings || [];
+  const statusText =
+    state.catalogFeedStatus === "synced"
+      ? `Default catalog synced with ${sourceListings.length} listings.`
+      : state.catalogFeedStatus === "error"
+        ? "Default catalog could not be loaded."
+        : "Default catalog loads when the app opens.";
   return `
     <section class="page-panel two-column">
       <div>
         <div class="page-heading">
           <h2>Public Listing Catalog</h2>
-          <p>Import authorized JSON feeds into the app-level catalog users see when they open the site.</p>
+          <p>${statusText}</p>
         </div>
         <form class="stack-form source-form" data-form="source-feed">
           <label>Source name<input name="sourceName" placeholder="Example Property Manager" required /></label>
@@ -1008,3 +1041,4 @@ function nextMapState(intent) {
 }
 
 render();
+loadCanadaCatalogFeed();

@@ -35,6 +35,7 @@ The test suite covers:
 - Facebook listing import and automatic favouriting.
 - Imported Facebook listing editing.
 - Public catalog JSON listing feed import, normalization, dedupe, and source filter discovery.
+- Checked-in Canada catalog feed validity and startup smoke coverage.
 - Favourite shortlist notes.
 - Frequent locations.
 - Commute estimate generation.

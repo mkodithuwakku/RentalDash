@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   addFrequentLocation,
   buildComparisonRows,
@@ -172,6 +173,20 @@ test("imports approved listing feeds into the public catalog and exposes source 
   assert.equal(secondImport.summary.addedCount, 0);
   assert.equal(secondImport.summary.updatedCount, 1);
   assert.equal(secondImport.state.publicSourceListings[0].price, 1695);
+});
+
+test("imports the checked-in Canada catalog feed", () => {
+  const catalog = JSON.parse(readFileSync("data/canada-rental-catalog.json", "utf8"));
+  const result = importListingFeed(createInitialState(), {
+    sourceName: catalog.sourceName,
+    sourceUrl: catalog.sourceUrl,
+    complianceConfirmed: true,
+    payload: JSON.stringify(catalog.listings)
+  });
+
+  assert.equal(result.state.publicSourceListings.length, catalog.listings.length);
+  assert.equal(result.state.publicSourceListings.some((listing) => listing.address.includes("Toronto")), true);
+  assert.equal(result.state.publicSourceListings.some((listing) => listing.address.includes("Iqaluit")), true);
 });
 
 test("rejects listing feed imports without authorization confirmation", () => {
