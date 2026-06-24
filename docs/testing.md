@@ -34,11 +34,12 @@ The test suite covers:
 - Listing filters.
 - Facebook listing import and automatic favouriting.
 - Imported Facebook listing editing.
+- Authorized JSON listing feed import, normalization, dedupe, and source filter discovery.
 - Favourite shortlist notes.
 - Frequent locations.
 - Commute estimate generation.
 - Comparison row construction, sorting, and highlights.
-- Browser-level MVP flow across MapLibre bootstrapping, zoom stability, fallback visibility, browser geolocation, map search, register, favourite, import, edit, notes, locations, and compare.
+- Browser-level MVP flow across MapLibre bootstrapping, zoom stability, fallback visibility, browser geolocation, map search, register, favourite, source feed import, Facebook import, edit, notes, locations, and compare.
 
 ## Testing Rules for Future Work
 

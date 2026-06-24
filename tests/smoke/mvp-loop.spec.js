@@ -53,6 +53,35 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
   await page.getByLabel("Select Bright Beltline One Bedroom").click();
   await page.getByRole("button", { name: "Save" }).first().click();
 
+  await page.getByRole("button", { name: "Sources" }).click();
+  const sourceForm = page.locator("[data-form='source-feed']");
+  await sourceForm.getByLabel("Source name").fill("Smoke Partner Feed");
+  await sourceForm.getByLabel("Feed or partner URL").fill("https://partner.example/feed.json");
+  await sourceForm.getByLabel("JSON listings").fill(
+    JSON.stringify([
+      {
+        externalId: "smoke-feed-1",
+        title: "Smoke partner rental",
+        price: 1750,
+        bedrooms: 1,
+        bathrooms: 1,
+        propertyType: "Apartment",
+        address: "Downtown Calgary",
+        lat: 51.046,
+        lng: -114.07,
+        amenities: ["Parking", "Laundry"],
+        availability: "2026-08-01",
+        url: "https://partner.example/listings/smoke-feed-1"
+      }
+    ])
+  );
+  await sourceForm.getByLabel("I have permission to use this feed and its listing data.").check();
+  await sourceForm.getByRole("button", { name: "Import feed listings" }).click();
+  await expect(page.getByRole("status")).toContainText("Feed import complete: 1 added.");
+  await expect(page.getByText("Smoke partner rental")).toBeVisible();
+  await page.locator("[data-form='filters']").getByLabel("Source").selectOption("Smoke Partner Feed");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).filters.source)).toBe("Smoke Partner Feed");
+
   await page.getByRole("button", { name: "Favourites" }).click();
   await expect(page.getByRole("heading", { name: "Favourites" })).toBeVisible();
   await expect(page.getByText("1 saved listings")).toBeVisible();

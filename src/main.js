@@ -7,9 +7,11 @@ import {
   getCurrentUser,
   getFavouriteIds,
   getFavouriteNotes,
+  getListingSourceOptions,
   getUserListings,
   getVisibleListings,
   importFacebookListing,
+  importListingFeed,
   locationAreaBounds,
   loginUser,
   logoutUser,
@@ -91,9 +93,10 @@ function render() {
           ${navButton("favourites", "Favourites")}
           ${navButton("compare", "Compare")}
           ${navButton("locations", "Locations")}
+          ${navButton("sources", "Sources")}
           ${navButton("import", "Import")}
         </nav>
-        ${renderFilters()}
+        ${renderFilters(allListings)}
         ${renderMapProviderControls()}
       </aside>
       <section class="workspace">
@@ -139,7 +142,8 @@ function renderAuth(user) {
   `;
 }
 
-function renderFilters() {
+function renderFilters(allListings) {
+  const sourceOptions = getListingSourceOptions(allListings);
   return `
     <form class="filters" data-form="filters">
       <h2>Filters</h2>
@@ -161,9 +165,7 @@ function renderFilters() {
         Source
         <select name="source">
           ${option("any", "Any", state.filters.source)}
-          ${option("Rentals.ca", "Rentals.ca", state.filters.source)}
-          ${option("REW", "REW", state.filters.source)}
-          ${option("Facebook Marketplace", "Facebook", state.filters.source)}
+          ${sourceOptions.map((source) => option(source, source, state.filters.source)).join("")}
         </select>
       </label>
       <label class="check-row">
@@ -198,6 +200,7 @@ function option(value, label, selected) {
 function renderView(context) {
   if (state.view === "compare") return renderCompare(context);
   if (state.view === "locations") return renderLocations(context);
+  if (state.view === "sources") return renderSources(context.user);
   if (state.view === "import") return renderImport(context.user);
   if (state.view === "edit-import") return renderEditImport(context);
   if (state.view === "favourites") return renderFavourites(context);
@@ -501,6 +504,56 @@ function renderLocation(location) {
   `;
 }
 
+function renderSources(user) {
+  if (!user) return renderGate("Log in to import approved listing feeds.");
+  const sourceListings = state.sourceListingsByUser?.[state.currentUser] || [];
+  return `
+    <section class="page-panel two-column">
+      <div>
+        <div class="page-heading">
+          <h2>Listing Sources</h2>
+          <p>Import authorized JSON feeds from landlords, property managers, or data partners.</p>
+        </div>
+        <form class="stack-form source-form" data-form="source-feed">
+          <label>Source name<input name="sourceName" placeholder="Example Property Manager" required /></label>
+          <label>Feed or partner URL<input name="sourceUrl" type="url" placeholder="https://example.com/rentals-feed.json" /></label>
+          <label>JSON listings<textarea name="payload" placeholder='[{"title":"Downtown one bedroom","price":1650,"address":"Calgary, AB","lat":51.044,"lng":-114.071,"url":"https://example.com/listing/1","bedrooms":1,"bathrooms":1,"amenities":["Parking","Laundry"]}]' required></textarea></label>
+          <label class="check-row">
+            <input name="complianceConfirmed" type="checkbox" required />
+            I have permission to use this feed and its listing data.
+          </label>
+          <button type="submit">Import feed listings</button>
+        </form>
+      </div>
+      <div class="source-summary">
+        <div class="page-heading">
+          <h2>Imported Feed Listings</h2>
+          <p>${sourceListings.length} listings from approved feeds</p>
+        </div>
+        ${
+          sourceListings.length
+            ? `<div class="listing-grid compact-grid">${sourceListings.map(renderSourceListingCard).join("")}</div>`
+            : renderEmpty("No feed listings yet", "Import an authorized JSON feed to add live-source listings to the map.")
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderSourceListingCard(listing) {
+  return `
+    <article class="listing-card">
+      <div>
+        <span class="source">${listing.source}</span>
+        <h3>${listing.title}</h3>
+        <p>${listing.address || "No address"}</p>
+        <strong>$${listing.price}</strong>
+        <button class="secondary" data-select="${listing.id}">View on map</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderImport(user) {
   if (!user) return renderGate("Log in to import Facebook Marketplace listings.");
   return `
@@ -629,6 +682,7 @@ function bindEvents() {
   document.querySelector("[data-form='map-search']")?.addEventListener("submit", handleMapSearch);
   document.querySelector("[data-form='compare-sort']")?.addEventListener("input", handleCompareSort);
   document.querySelector("[data-form='facebook']")?.addEventListener("submit", handleFacebookImport);
+  document.querySelector("[data-form='source-feed']")?.addEventListener("submit", handleSourceFeedImport);
   document.querySelector("[data-form='edit-import']")?.addEventListener("submit", handleImportedEdit);
   document.querySelector("[data-form='favourite-note']")?.addEventListener("submit", handleFavouriteNote);
   document.querySelector("[data-form='location']")?.addEventListener("submit", handleLocation);
@@ -878,6 +932,27 @@ function handleFacebookImport(event) {
     () => update({ ...importFacebookListing(state, values), view: "dashboard", mobilePanel: "details" }),
     "Imported listing added to favourites."
   );
+}
+
+function handleSourceFeedImport(event) {
+  event.preventDefault();
+  const values = Object.fromEntries(new FormData(event.currentTarget));
+  try {
+    const result = importListingFeed(state, values);
+    const parts = [];
+    if (result.summary.addedCount) parts.push(`${result.summary.addedCount} added`);
+    if (result.summary.updatedCount) parts.push(`${result.summary.updatedCount} updated`);
+    update({
+      ...result.state,
+      view: "sources",
+      notice: {
+        type: "success",
+        message: `Feed import complete: ${parts.join(", ") || "0 changed"}.`
+      }
+    });
+  } catch (error) {
+    update({ ...state, notice: { type: "error", message: error.message } });
+  }
 }
 
 function handleImportedEdit(event) {

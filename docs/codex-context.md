@@ -69,6 +69,8 @@ npm run test:watch
 - Logged-in users can import Facebook Marketplace listing URLs by manually entering listing details.
 - Imported Facebook listings are automatically added to favourites.
 - Logged-in users can edit imported Facebook Marketplace listings after saving.
+- Logged-in users can import authorized JSON listing feeds from landlords, property managers, or data partners.
+- Feed imports are normalized, deduplicated by source/external ID or URL, and stored locally per user.
 - Saved listings support shortlist notes that appear in detail, favourites, and compare views.
 - Logged-in users can add frequent locations with latitude and longitude.
 - Commute estimates use haversine distance and assumed driving speed, not real traffic/routing.
@@ -86,11 +88,12 @@ npm run test:watch
 - Documentation must be updated with implementation changes.
 - Third-party listing access must be handled through compliant APIs, feeds, or approved source adapters in later phases.
 - Facebook Marketplace import is manual-first because automatic extraction may be unreliable or disallowed.
+- Source integrations are adapter-first: the static MVP supports local authorized JSON feed import, while direct provider pulls should wait for approved API/feed access and backend secrets/scheduling.
 
 ## Next Best Work
 
-1. Add provider-backed geocoding for imports and frequent locations.
-2. Add a separate commute provider for route-based driving/transit/walking/cycling times.
-3. Add accessible keyboard interaction coverage for map pins and mobile toggles.
-4. Add edit/delete support for frequent locations.
-5. Add richer listing filters for parking, pets, furnishing, and availability.
+1. Add backend-backed source sync jobs for approved listing feeds.
+2. Add provider-backed geocoding for imports and frequent locations.
+3. Add a separate commute provider for route-based driving/transit/walking/cycling times.
+4. Add accessible keyboard interaction coverage for map pins and mobile toggles.
+5. Add edit support for frequent locations.

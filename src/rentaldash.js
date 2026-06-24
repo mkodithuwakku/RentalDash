@@ -74,6 +74,7 @@ export const defaultState = {
   users: [],
   favouritesByUser: {},
   importedByUser: {},
+  sourceListingsByUser: {},
   locationsByUser: {},
   notesByUser: {},
   view: "dashboard",
@@ -134,6 +135,7 @@ export function registerUser(state, email, name = "") {
     users: [...state.users, user],
     favouritesByUser: { ...state.favouritesByUser, [user.id]: [] },
     importedByUser: { ...state.importedByUser, [user.id]: [] },
+    sourceListingsByUser: { ...state.sourceListingsByUser, [user.id]: [] },
     locationsByUser: { ...state.locationsByUser, [user.id]: [] },
     notesByUser: { ...state.notesByUser, [user.id]: {} }
   };
@@ -158,7 +160,14 @@ export function getCurrentUser(state) {
 
 export function getUserListings(state) {
   const imported = state.currentUser ? state.importedByUser[state.currentUser] || [] : [];
-  return [...seedListings, ...imported];
+  const sourceListings = state.currentUser ? state.sourceListingsByUser?.[state.currentUser] || [] : [];
+  return [...seedListings, ...imported, ...sourceListings];
+}
+
+export function getListingSourceOptions(listings) {
+  return [...new Set(listings.map((listing) => listing.source).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 export function getFavouriteIds(state) {
@@ -298,6 +307,53 @@ export function updateImportedListing(state, listingId, form) {
       [state.currentUser]: imported.map((listing) => (listing.id === listingId ? updated : listing))
     },
     selectedListingId: listingId
+  };
+}
+
+export function importListingFeed(state, form) {
+  requireUser(state);
+  if (form.complianceConfirmed !== "on" && form.complianceConfirmed !== true) {
+    throw new Error("Confirm that this feed is authorized before importing listings.");
+  }
+  const sourceName = String(form.sourceName || "").trim();
+  if (!sourceName) {
+    throw new Error("Source name is required.");
+  }
+  const payload = parseListingFeedPayload(form.payload);
+  const incoming = payload.map((listing, index) =>
+    normalizeFeedListing(listing, {
+      sourceName,
+      sourceUrl: String(form.sourceUrl || "").trim(),
+      index
+    })
+  );
+  const current = state.sourceListingsByUser?.[state.currentUser] || [];
+  const currentById = new Map(current.map((listing) => [listing.id, listing]));
+  let addedCount = 0;
+  let updatedCount = 0;
+
+  for (const listing of incoming) {
+    if (currentById.has(listing.id)) {
+      updatedCount += 1;
+    } else {
+      addedCount += 1;
+    }
+    currentById.set(listing.id, listing);
+  }
+
+  return {
+    state: {
+      ...state,
+      sourceListingsByUser: {
+        ...state.sourceListingsByUser,
+        [state.currentUser]: [...currentById.values()]
+      }
+    },
+    summary: {
+      addedCount,
+      updatedCount,
+      totalCount: incoming.length
+    }
   };
 }
 
@@ -441,10 +497,80 @@ function requireUser(state) {
 }
 
 function parseAmenities(value = "") {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
   return value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseListingFeedPayload(payload) {
+  let parsed;
+  try {
+    parsed = JSON.parse(String(payload || "").trim());
+  } catch {
+    throw new Error("Feed payload must be valid JSON.");
+  }
+  const listings = Array.isArray(parsed) ? parsed : parsed?.listings;
+  if (!Array.isArray(listings) || listings.length === 0) {
+    throw new Error("Feed JSON must contain a non-empty listings array.");
+  }
+  return listings;
+}
+
+function normalizeFeedListing(listing, { sourceName, sourceUrl, index }) {
+  if (!listing || typeof listing !== "object" || Array.isArray(listing)) {
+    throw new Error(`Listing ${index + 1} must be an object.`);
+  }
+  const title = String(listing.title || listing.name || "").trim();
+  const price = Number(listing.price ?? listing.rent);
+  const lat = Number(listing.lat ?? listing.latitude);
+  const lng = Number(listing.lng ?? listing.lon ?? listing.longitude);
+  const url = String(listing.url || listing.sourceUrl || sourceUrl || "").trim();
+  if (!title || !Number.isFinite(price) || !Number.isFinite(lat) || !Number.isFinite(lng) || !url) {
+    throw new Error(`Listing ${index + 1} requires title, price, latitude, longitude, and URL.`);
+  }
+  const address = String(listing.address || listing.location || "").trim();
+  const dedupeKey = String(listing.externalId || listing.id || url || `${sourceName}:${title}:${address}`)
+    .trim()
+    .toLowerCase();
+  return {
+    id: `source-${hashString(`${sourceName}:${dedupeKey}`)}`,
+    source: sourceName,
+    title,
+    price,
+    bedrooms: numberOrDefault(listing.bedrooms ?? listing.beds, 0),
+    bathrooms: numberOrDefault(listing.bathrooms ?? listing.baths, 1),
+    propertyType: String(listing.propertyType || listing.type || "Rental").trim(),
+    address,
+    lat,
+    lng,
+    amenities: parseAmenities(listing.amenities),
+    availability: String(listing.availability || "Unavailable").trim(),
+    image:
+      String(listing.image || listing.imageUrl || "").trim() ||
+      "https://images.unsplash.com/photo-1560185127-6ed189bf02f4?auto=format&fit=crop&w=900&q=80",
+    url,
+    feedImported: true,
+    imported: false,
+    sourceUrl,
+    lastSeenAt: new Date().toISOString()
+  };
+}
+
+function hashString(value) {
+  let hash = 5381;
+  for (const char of value) {
+    hash = (hash * 33) ^ char.charCodeAt(0);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function numberOrDefault(value, fallback) {
+  const number = Number(value ?? fallback);
+  return Number.isFinite(number) ? number : fallback;
 }
 
 function clamp(value, min, max) {

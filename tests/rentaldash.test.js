@@ -8,7 +8,9 @@ import {
   filterListings,
   getFavouriteIds,
   getFavouriteNotes,
+  getListingSourceOptions,
   importFacebookListing,
+  importListingFeed,
   isFacebookMarketplaceUrl,
   locationAreaBounds,
   loginUser,
@@ -106,6 +108,80 @@ test("imports a Facebook listing and favourites it", () => {
   assert.equal(imported.price, 1550);
   assert.deepEqual(imported.amenities, ["Parking", "Laundry"]);
   assert.equal(getFavouriteIds(state).includes(imported.id), true);
+});
+
+test("imports approved listing feeds and exposes source filter options", () => {
+  let state = registerUser(createInitialState(), "feeds@example.com");
+  const firstImport = importListingFeed(state, {
+    sourceName: "Partner Feed",
+    sourceUrl: "https://partner.example/feed.json",
+    complianceConfirmed: "on",
+    payload: JSON.stringify({
+      listings: [
+        {
+          externalId: "unit-101",
+          title: "Partner downtown rental",
+          price: 1725,
+          bedrooms: 1,
+          bathrooms: 1,
+          propertyType: "Apartment",
+          address: "Downtown Calgary",
+          lat: 51.046,
+          lng: -114.07,
+          amenities: ["Parking", "Laundry"],
+          availability: "2026-08-01",
+          url: "https://partner.example/listings/unit-101"
+        }
+      ]
+    })
+  });
+
+  state = firstImport.state;
+  assert.deepEqual(firstImport.summary, {
+    addedCount: 1,
+    updatedCount: 0,
+    totalCount: 1
+  });
+
+  const imported = state.sourceListingsByUser[state.currentUser][0];
+  assert.equal(imported.source, "Partner Feed");
+  assert.equal(imported.price, 1725);
+  assert.equal(imported.feedImported, true);
+  assert.deepEqual(imported.amenities, ["Parking", "Laundry"]);
+  assert.equal(getListingSourceOptions([...seedListings, imported]).includes("Partner Feed"), true);
+
+  const secondImport = importListingFeed(state, {
+    sourceName: "Partner Feed",
+    sourceUrl: "https://partner.example/feed.json",
+    complianceConfirmed: true,
+    payload: JSON.stringify([
+      {
+        externalId: "unit-101",
+        title: "Partner downtown rental",
+        price: 1695,
+        address: "Downtown Calgary",
+        lat: 51.046,
+        lng: -114.07,
+        url: "https://partner.example/listings/unit-101"
+      }
+    ])
+  });
+
+  assert.equal(secondImport.summary.addedCount, 0);
+  assert.equal(secondImport.summary.updatedCount, 1);
+  assert.equal(secondImport.state.sourceListingsByUser[state.currentUser][0].price, 1695);
+});
+
+test("rejects listing feed imports without authorization confirmation", () => {
+  const state = registerUser(createInitialState(), "blocked-feed@example.com");
+  assert.throws(
+    () =>
+      importListingFeed(state, {
+        sourceName: "Unapproved Feed",
+        payload: "[]"
+      }),
+    /Confirm that this feed is authorized/
+  );
 });
 
 test("updates imported Facebook listing details", () => {
