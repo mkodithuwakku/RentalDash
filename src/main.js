@@ -30,6 +30,7 @@ import {
   getMapStyleUrl,
   initMapLibreMap,
   setMapStyleUrl,
+  setSelectedMapMarker,
   teardownMapLibreMap
 } from "./maplibre-map.js";
 
@@ -726,16 +727,8 @@ function bindEvents() {
   document.querySelector("[data-form='facebook']")?.addEventListener("submit", handleFacebookImport);
   document.querySelector("[data-form='source-feed']")?.addEventListener("submit", handleSourceFeedImport);
   document.querySelector("[data-form='edit-import']")?.addEventListener("submit", handleImportedEdit);
-  document.querySelector("[data-form='favourite-note']")?.addEventListener("submit", handleFavouriteNote);
   document.querySelector("[data-form='location']")?.addEventListener("submit", handleLocation);
-  document.querySelectorAll("[data-favourite]").forEach((button) => {
-    button.addEventListener("click", () => action(() => update(toggleFavourite(state, button.dataset.favourite))));
-  });
-  document.querySelectorAll("[data-edit-import]").forEach((button) => {
-    button.addEventListener("click", () =>
-      update({ ...state, view: "edit-import", editingListingId: button.dataset.editImport })
-    );
-  });
+  bindListingActionEvents(document);
   document.querySelectorAll("[data-mobile-panel]").forEach((button) => {
     button.addEventListener("click", () => update({ ...state, mobilePanel: button.dataset.mobilePanel }));
   });
@@ -753,6 +746,18 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-remove-location]").forEach((button) => {
     button.addEventListener("click", () => update(removeFrequentLocation(state, button.dataset.removeLocation)));
+  });
+}
+
+function bindListingActionEvents(root) {
+  root.querySelector("[data-form='favourite-note']")?.addEventListener("submit", handleFavouriteNote);
+  root.querySelectorAll("[data-favourite]").forEach((button) => {
+    button.addEventListener("click", () => action(() => update(toggleFavourite(state, button.dataset.favourite))));
+  });
+  root.querySelectorAll("[data-edit-import]").forEach((button) => {
+    button.addEventListener("click", () =>
+      update({ ...state, view: "edit-import", editingListingId: button.dataset.editImport })
+    );
   });
 }
 
@@ -827,13 +832,44 @@ function maybeCenterOnUserLocation() {
 
 function selectListing(listingId) {
   const listing = getUserListings(state).find((item) => item.id === listingId);
-  update({
+  const nextState = {
     ...state,
     view: "dashboard",
     selectedListingId: listingId,
     editingListingId: null,
     mobilePanel: "details",
     map: listing ? { ...state.map, centerLat: listing.lat, centerLng: listing.lng } : state.map
+  };
+
+  if (listing && updateDashboardSelectionInPlace(nextState, listing)) {
+    return;
+  }
+
+  update(nextState);
+}
+
+function updateDashboardSelectionInPlace(nextState, listing) {
+  const mapCanvas = document.querySelector(".map-canvas.maplibre-ready");
+  const detailPanel = document.querySelector(".detail-panel");
+  if (state.view !== "dashboard" || !mapCanvas || !detailPanel) return false;
+
+  state = nextState;
+  saveState();
+  flyMapTo(state.map);
+  setSelectedMapMarker(listing.id);
+  detailPanel.innerHTML = renderListingDetail(listing, getFavouriteIds(state));
+  updateMobileDashboardPanels();
+  bindListingActionEvents(detailPanel);
+  return true;
+}
+
+function updateMobileDashboardPanels() {
+  const mapPanel = document.querySelector(".map-panel");
+  const detailPanel = document.querySelector(".detail-panel");
+  mapPanel?.classList.toggle("mobile-hidden", state.mobilePanel === "details");
+  detailPanel?.classList.toggle("mobile-hidden", state.mobilePanel === "map");
+  document.querySelectorAll("[data-mobile-panel]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mobilePanel === state.mobilePanel);
   });
 }
 

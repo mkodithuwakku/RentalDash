@@ -78,16 +78,20 @@ export function initMapLibreMap({
 
   teardownMapLibreMap();
   activeContainer = container;
+  const configuredStyleUrl = getMapStyleUrl();
 
   try {
     activeMap = new maplibregl.Map({
       container: mapTarget,
-      style: getMapStyleUrl() || defaultRasterStyle,
+      style: configuredStyleUrl || defaultRasterStyle,
       center: [mapState.centerLng, mapState.centerLat],
       zoom: clampZoom(mapState.zoom),
       maxZoom: maxMapZoom,
       attributionControl: true,
-      cooperativeGestures: true
+      cooperativeGestures: false,
+      dragPan: true,
+      scrollZoom: true,
+      touchZoomRotate: true
     });
   } catch {
     container.classList.add("maplibre-unavailable");
@@ -96,8 +100,12 @@ export function initMapLibreMap({
   }
 
   activeMap.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "top-right");
+  const initializedMap = activeMap;
 
+  let ready = false;
   const markReady = () => {
+    if (ready || activeMap !== initializedMap) return;
+    ready = true;
     container.classList.add("maplibre-ready");
     container.classList.remove("maplibre-unavailable");
     syncMarkers({ listings, favouriteIds, selectedListingId, onSelect });
@@ -105,8 +113,22 @@ export function initMapLibreMap({
 
   activeMap.once("styledata", markReady);
   activeMap.once("load", markReady);
+  activeMap.once("idle", markReady);
+  window.setTimeout(() => {
+    if (activeMap === initializedMap && !ready && activeMap.getStyle()) {
+      markReady();
+    }
+  }, 1000);
 
+  let recoveredConfiguredStyle = false;
   activeMap.on("error", (event) => {
+    if (configuredStyleUrl && !recoveredConfiguredStyle && isConfiguredStyleLoadError(event)) {
+      recoveredConfiguredStyle = true;
+      setMapStyleUrl("");
+      activeMap?.setStyle(defaultRasterStyle);
+      markReady();
+      return;
+    }
     if (isFatalMapLibreError(event)) {
       markMapUnavailable(container);
     }
@@ -183,6 +205,7 @@ function syncMarkers({ listings, favouriteIds, selectedListingId, onSelect }) {
       .filter(Boolean)
       .join(" ");
     element.textContent = `$${listing.price}`;
+    element.dataset.listingId = listing.id;
     element.setAttribute("aria-label", `Select ${listing.title}`);
     element.addEventListener("click", () => onSelect(listing.id));
 
@@ -190,6 +213,14 @@ function syncMarkers({ listings, favouriteIds, selectedListingId, onSelect }) {
       .setLngLat([listing.lng, listing.lat])
       .addTo(activeMap);
   });
+}
+
+export function setSelectedMapMarker(selectedListingId) {
+  if (!activeContainer) return false;
+  activeContainer.querySelectorAll(".maplibre-price-pin").forEach((marker) => {
+    marker.classList.toggle("selected", marker.dataset.listingId === selectedListingId);
+  });
+  return true;
 }
 
 function markMapUnavailable(container) {
@@ -209,6 +240,10 @@ export function isFatalMapLibreError(event) {
   }
 
   return message.includes("webgl") || message.includes("style");
+}
+
+function isConfiguredStyleLoadError(event) {
+  return !event?.tile && !event?.sourceId;
 }
 
 function clampZoom(zoom) {

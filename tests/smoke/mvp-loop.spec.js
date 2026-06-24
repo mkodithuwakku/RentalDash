@@ -87,7 +87,12 @@ test("user can complete the MVP rental shortlist loop", async ({ page, context }
 
   await expect(page.getByText("smoke@example.com")).toBeVisible();
   await page.locator("[data-form='filters']").getByLabel("Source").selectOption("Rentals.ca");
+  await page.locator(".maplibregl-canvas").evaluate((node) => {
+    node.dataset.stabilityCheck = "before-select";
+  });
   await page.getByLabel("Select Bright Beltline One Bedroom").click();
+  await expect(page.locator(".map-canvas")).toHaveClass(/maplibre-ready/);
+  await expect(page.locator(".maplibregl-canvas")).toHaveAttribute("data-stability-check", "before-select");
   await page.getByRole("button", { name: "Save" }).first().click();
 
   await page.getByRole("button", { name: "Favourites" }).click();
@@ -162,7 +167,29 @@ test("map remains available when tile requests fail during interaction", async (
   await page.locator(".maplibregl-ctrl-zoom-in").click();
   await page.getByRole("button", { name: "+" }).first().click();
   await page.getByRole("button", { name: "→" }).click();
+  const zoomBeforeWheel = await page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).map.zoom);
+  await page.locator(".map-canvas").hover();
+  await page.mouse.wheel(0, -700);
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("rentaldash.state.v1")).map.zoom))
+    .toBeGreaterThan(zoomBeforeWheel);
 
   await expect(page.locator(".map-canvas")).not.toHaveClass(/maplibre-unavailable/);
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+});
+
+test("map recovers from a bad saved provider style", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("rentaldash.mapStyleUrl", "https://bad-style.example/style.json");
+  });
+  await page.route("https://bad-style.example/**", async (route) => {
+    await route.abort();
+  });
+
+  await page.goto("/");
+
+  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector(".maplibre-ready")))).toBe(true);
+  await expect(page.locator(".map-canvas")).not.toHaveClass(/maplibre-unavailable/);
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("rentaldash.mapStyleUrl"))).toBe(null);
 });
